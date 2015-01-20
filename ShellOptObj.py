@@ -10,42 +10,45 @@ attempt at object orientation of nushell optimization
 def CreateInFile(sInfilePath):
   fInFile=open(sInfilePath,'w')
   # lines in me spec
-  fInFile.write('1')
+  fInFile.write('1\n')
   # matrix element specification
-  fInFile.write('OBME')
+  fInFile.write('OBME\n')
   #model space specification
-  fInFile.write('sd')
+  fInFile.write('sd\n')
   #restriction
-  fInFile.write('n')
+  fInFile.write('n\n')
   #interaction
-  fInFile.write('usdb')
+  fInFile.write('usdb\n')
   #number of nuclei used in optimization
-  fInFile.write('1')
+  fInFile.write('1\n')
   #number of protons 
-  fInFile.write('  8')
+  fInFile.write('  8\n')
   #of nucleons
-  fInFile.write('20')
+  fInFile.write('20\n')
   #min max delta j
-  fInFile.write(' 0.0, 4.0, 1.0,')
+  fInFile.write(' 0.0, 4.0, 1.0,\n')
   #parity
-  fInFile.write('  0')
+  fInFile.write('  0\n')
   #number of states used in optimization
-  fInFile.write('3')
+  fInFile.write('3\n')
   #state specifications
-  fInFile.write('  0  +1')
-  fInFile.write('  2  +1')
-  fInFile.write('  4  +1')    
-#test code to crate an input file
-CreateInFile()
+  fInFile.write('  0  +1\n')
+  fInFile.write('  2  +1\n')
+  fInFile.write('  4  +1\n')    
+  
+#code to crate an input file
+#CreateInFile('C:/PythonScripts/NushellScripts/OptInput.in')
+
 class ShellOpt:
    'Class for shell model hamiltonian optimization problems'
-
    def __init__(self, sInPath, sOutPath):
       self.sInPath = sInPath
       self.sOutPath = sOutPath
-      self.GetIn
+      #get info from input file and initializes the nuclei objects
+      self.GetIn()
    
    def GetIn(self):
+     import ShellNuclei
      fIn=open(self.sInPath,'r')
      sTempL=fIn.readline()
      lSpec=[]
@@ -60,23 +63,20 @@ class ShellOpt:
          else:
            print "Error: invalid specification of matrix element class"
        else: 
-         sTempL=fIn.readline()
+         sTempL=fIn.readline().strip('\n')
          lSpec.append(sTempL)
-     self.msMspace=fIn.readline()
-     self.msRest=fIn.readline()
-     self.msInt=fIn.readline()
-     self.mnNuclei=int(fIn.readline())
-     anA=[]
-     anZ=[]
-     asMMDJ=[]
-     asPar=[]
-     llStateSpec=[]
+     self.lsShared=[]
+     for nIdx in range(3):
+       self.lsShared.append(fIn.readline().strip('\n'))
+     self.mnNuclei=int(fIn.readline().strip('\n'))
+     self.mloNuclei=[]
      for nIdx in range(self.mnNuclei):
-       anA.append(int(fIn.readline()))
-       anZ.append(int(fIn.readline()))
-       asMMDJ.append(fIn.readline())
-       asPar.append(fIn.readline())
-       llStateSpec.append([])
+       self.mloNuclei.append(ShellNuclei.nucleus(int(fIn.readline()),int(fIn.readline()),self.sOutPath,fIn.readline().strip('\n'),fIn.readline().strip('\n'),self.lsShared))
+       llStateSpec=[]
        for iii in range(int(fIn.readline())):
-         llStateSpec[nIdx].append(fIn.readline())
-       
+         llStateSpec.append(fIn.readline().strip('\n'))
+       self.mloNuclei[nIdx].setLevels(llStateSpec)       
+     fIn.close()
+import sys
+sys.path.append('c:\\PythonScripts\\NushellScripts\\')     
+x=ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in','c:\\PythonScripts\\NushellScripts\\test')

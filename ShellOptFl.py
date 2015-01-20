@@ -18,7 +18,7 @@ class MEhandler:
     self.msPath=sPath
     #Determine what number of each type of ME are to be read and written
     self.nMEnum=[]
-    for nIdx, elem in enumerate(lType):
+    for nIdx, elem in enumerate(anBody):
       if len(llSpec[nIdx])!=0:
         self.nMEnum.append(len(llSpec[nIdx]))
       elif len(llSpec[nIdx])==0 and elem==1:
