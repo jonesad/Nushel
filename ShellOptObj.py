@@ -46,7 +46,11 @@ class ShellOpt:
       self.sOutPath = sOutPath
       #get info from input file and initializes the nuclei objects
       self.GetIn()
-   
+      npaGuess=self.mloNuclei[0].getME()
+      from scipy.optimize import minimize
+      res = minimize(self.obj, npaGuess, method='COBYLA', options={'tol':0.0001,'rhobeg':0.1,'disp': True})
+      print res
+      
    def GetIn(self):
      import ShellNuclei
      fIn=open(self.sInPath,'r')
@@ -73,10 +77,29 @@ class ShellOpt:
      for nIdx in range(self.mnNuclei):
        self.mloNuclei.append(ShellNuclei.nucleus(int(fIn.readline()),int(fIn.readline()),self.sOutPath,fIn.readline().strip('\n'),fIn.readline().strip('\n'),self.lsShared))
        llStateSpec=[]
-       for iii in range(int(fIn.readline())):
+       temp=int(fIn.readline())
+       for iii in range(temp):
          llStateSpec.append(fIn.readline().strip('\n'))
+       print llStateSpec
        self.mloNuclei[nIdx].setLevels(llStateSpec)       
+       self.mloNuclei[nIdx].setmanBody(anBody) 
+#       print self.mloNuclei[nIdx].countOBME()
      fIn.close()
+ 
+#The objective function takes the array of matrix elements
+   def obj(self,npaME):
+     import numpy as np
+     res=np.array([])
+     #each nucleus
+     for oNuc in self.mloNuclei:
+       #write ME to file
+       oNuc.takeME(npaME)
+       #run Shell model calc
+       oNuc.runSM()
+       #get the energy difference for the releveant particles
+       res.append(oNuc.Ediff())
+     return np.sqrt(np.dot(res,res)/float(len(res)))     
 import sys
+
 sys.path.append('c:\\PythonScripts\\NushellScripts\\')     
 x=ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in','c:\\PythonScripts\\NushellScripts\\test')

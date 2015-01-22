@@ -19,7 +19,7 @@ def RunSm(sBatPath, sIntPath, sEnPath, sEnPathEx, afME, nOBME):
     anBody=[1]
   NushellUtil.ModInt(sIntPath, anBody, afME[:nOBME],afME[nOBME:])
   system(sBatPath)
-  return NushellUtil.FileRMS(sEnPath,sEnPathEx, 10)
+  return NushellUtil.FileRMS(sEnPath,sEnPathEx, 2)
 
 #testcode just runs a simple test of the function RunSm 
 #def testcode():
@@ -45,11 +45,11 @@ def OptUSDB(sBatPath, sIntPath, sEnPath, sEnPathEx):
   ME1=NushellUtil.ReadInt(sIntPath, 1)
   nOBME=len(ME1)  
   fun=lambda x: RunSm(sBatPath, sIntPath, sEnPath, sEnPathEx, x, nOBME)  
-  ME2=NushellUtil.ReadInt(sIntPath, 2)
-  for elem in ME2:  
-    ME1.append(elem)
+#  ME2=NushellUtil.ReadInt(sIntPath, 2)
+#  for elem in ME2:  
+#    ME1.append(elem)
   afME=np.array(ME1,dtype=float)  
-  res = minimize(fun, afME, method='COBYLA', options={'tol':0.0001,'rhobeg':0.1,'disp': True})
+  res = minimize(fun, afME, method='Nelder-Mead',options={'disp': True, 'initial_trust_radius' : 0.1})
   return res
   
 #test code runs simple test of OptUSDB

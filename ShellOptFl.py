@@ -8,35 +8,49 @@ Self contained utility classes for Shell Opt
 """
 
 class MEhandler:
-  'Takes lists of ME Types and the and list of lists of ME to be used in methods that read and write them.'
-  def __init__(self, anBody, sPath, llSpec=[[],[]]):
+  'Takes lists of ME Types and the and list of lists of ME to be used in methods that read and write them. The nucleus class inherits from here.'
+  def __init__(self, anBody, sPath, sName, sInt, llspec=[[],[]]):
     #assign matrix element type specification    
-    self.manBody=anBody
+    self.setmanBody(anBody)    
     #assign the list of ME specifications (tells shich ME to change
-    self.mllSpec=llSpec
+    self.mllspec=llspec
     #assign path associated with list for reading and writing 
-    self.msPath=sPath
+    self.sPath=str(sPath)
+    #the Nucleus directory name
+    self.sName=str(sName)
+    #interaction name string without the .int extension
+    self.sInt=str(sInt)
+        
+    
+#set manBody outside of initialization
+  def setmanBody(self, anBody):
+    self.manBody=anBody
     #Determine what number of each type of ME are to be read and written
     self.nMEnum=[]
     for nIdx, elem in enumerate(anBody):
-      if len(llSpec[nIdx])!=0:
-        self.nMEnum.append(len(llSpec[nIdx]))
-      elif len(llSpec[nIdx])==0 and elem==1:
+      if len(self.mllspec[nIdx])!=0:
+        self.nMEnum.append(len(self.mllspec[nIdx]))
+      elif len(self.mllspec[nIdx])==0 and elem==1:
         self.nMEnum.append(self.countOBME())
-      elif len(llSpec[nIdx])==0 and elem==2:
-        self.nMEnum.append(self.countTBME())  
-  
+      elif len(self.mllspec[nIdx])==0 and elem==2:
+        self.nMEnum.append(self.countTBME())
+            
+# make the path of the interaction file   
+  def makeIntPath(self, sPreExt=''):
+    temp=str(self.sPath)+'\\'+str(self.sName)+'\\'+str(self.sInt)+str(sPreExt)+'.int'
+    return temp
+    
   def writeOBME(self, npaME):
     import shutil
-    shutil.copyfile(self.msPath, self.msPath+"_")
-    fIntSrc=open(self.msPath+"_",'r') 
-    fIntOut=open(self.msPath,'w')
+    shutil.copyfile(self.makeIntPath(), self.makeIntPath('_'))
+    fIntSrc=open(self.makeIntPath('_'),'r') 
+    fIntOut=open(self.makeIntPath(''),'w')
     for line in fIntSrc:
       if line[0]!='!':
         line=line.strip().split()
         sStart="{0:3}{1:>11.4f}"
         sNext="{0:>10.4f}"
-        if len(self.llspec[0])==0:
+        if len(self.mllspec[0])==0:
           sNew=sStart.format(line[0],float(npaME[0]))
           for nElemIdx, elem in enumerate(npaME):
             if nElemIdx!=0:
@@ -66,12 +80,33 @@ class MEhandler:
         break            
     fIntSrc.close()
     fIntOut.close()
+#    get the one body matrix elements
+  def getOBME(self):
+    import numpy as np
+    if len(self.mllspec[0])==0:
+      nOBME=self.countOBME()
+    else:
+      nOBME=len(self.mllspec[0])              
+    fIntSrc=open(self.makeIntPath(''),'r') 
+    npaME=[]    
+    for line in fIntSrc:
+      if line[0]!='!':
+        line=line.strip().split()
+        if len(self.mllspec[0])==0:
+          npaME.append(line[1:1+nOBME])          
+        elif len(self.mllspec[0])!=0:
+          for elem in self.mllspec[0]:
+            print elem
+            npaME.append(line[int(elem)])
+        break            
+    fIntSrc.close()
+    return np.array(npaME,dtype=float)
     
   def writeTBME(self,npaME):
     import shutil
-    shutil.copyfile(self.msPath, self.msPath+"_")
-    fIntSrc=open(self.msPath+"_",'r') 
-    fIntOut=open(self.msPath,'w')
+    shutil.copyfile(self.makeIntPath(''),self.makeIntPath('_'))
+    fIntSrc=open(self.makeIntPath('_'),'r') 
+    fIntOut=open(self.makeIntPath(''),'w')
     sStart="{0:>3}"
     sNext="{0:>5}{1:>3}{2:>9.4f}"
     sNew=""          
@@ -79,14 +114,14 @@ class MEhandler:
     nUnCm=0
     for line in fIntSrc:
       if line[0]!='!':             
-        if  len(self.llspec[1])==0 and nUnCm!=0:
+        if  len(self.mllspec[1])==0 and nUnCm!=0:
           line=line.strip().split()
           for i in range(4):
             sNew=sNew+sStart.format(line[i])
           sNew=sNew+sNext.format(line[4],line[5], float(npaME[nElem]))
           fIntOut.write(sNew+"\n")          
           nElem=nElem+1
-        elif len(self.llspec[1])!=0 and nUnCm!=0 and self.llSpec[1][nElem]==nUnCm:
+        elif len(self.mllspec[1])!=0 and nUnCm!=0 and self.mllspec[1][nElem]==nUnCm:
           line=line.strip().split()
           for i in range(4):
             sNew=sNew+sStart.format(line[i])
@@ -100,15 +135,37 @@ class MEhandler:
       nUnCm+=1
       fIntSrc.close()
       fIntOut.close()
+
+#Get TBME
+  def getTBME(self):
+    fIntSrc=open(self.makeIntPath(''),'r') 
+    import numpy as np
+    npaME=np.array([])
+    nElem=0
+    nUnCm=0
+    for line in fIntSrc:
+      if line[0]!='!':             
+        if  len(self.mllspec[1])==0 and nUnCm!=0:
+          line=line.strip().split()
+          npaME.append(float(line[6]))          
+          nElem=nElem+1
+        elif len(self.mllspec[1])!=0 and nUnCm!=0 and self.mllspec[1][nElem]==nUnCm:
+          line=line.strip().split()
+          npaME.append(float(line[6]))         
+          nElem=nElem+1
+      nUnCm+=1
+      fIntSrc.close()
+      return npaME
+      
   #return total number of OBME in the interaction file 
   def countOBME(self):
-    fIntSrc=open(self.msPath,'r')
+    fIntSrc=open(self.makeIntPath(''),'r')
     for line in fIntSrc:
       if line[0]!='!':
-        return len(line.strip().split())-3
+        return len(line.strip().split())-4
   #rerturn the total number of TBME in the interaction file
   def countTBME(self):
-    fIntSrc=open(self.msPath)
+    fIntSrc=open(self.makeIntPath(''))
     nLIdx=0
     for line in fIntSrc:
       if line[0]!='!':
@@ -128,4 +185,16 @@ class MEhandler:
     if len(npaOBME)>0:
       self.writeOBME(npaOBME) 
     if len(npaTBME)>0:
-      self.writeTBME(npaTBME)  
+      self.writeTBME(npaTBME) 
+      
+#return the specified matrix elements of the current hamiltonian.
+  def getME(self):
+    npaME=[]
+    for elem in self.manBody:
+      if elem==1:
+        npaME=self.getOBME()
+      elif elem==2:
+        npaME=self.gettBME()      
+    return npaME
+    
+      

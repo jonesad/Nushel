@@ -37,10 +37,14 @@ def FileRMS(sPathRes,sPathExp,nNumlev):
           nIdx=nIdx+1;
     xERes=np.array(xERes,float)
     xEExp=np.array(xEExp,float)
+#    debugging code    
+#    print xERes 
+#    print xEExp
+#    end dubug
     return math.sqrt(np.dot(xERes-xEExp,xERes-xEExp)/float(nNumlev))
  
 #line of test code   
-#print FileRMS("C:\\PythonScripts\\NushellScripts\\o_20b.lpt","C:\\PythonScripts\\NushellScripts\\o_020exp.lpt",10)
+#print FileRMS("C:\\PythonScripts\\NushellScripts\\o_20b.lpt","C:\\PythonScripts\\NushellScripts\\o_020exp.lpt",3)
  
 #Function for editing the interaction file at sPath for the shell model code. 
 #Copies original file then changes all matrix element types specified by the 
@@ -136,3 +140,45 @@ def ReadInt(sPath, nBody):
 #2 lines of test code below
 #print ReadInt("c:\PythonScripts\NushellScripts\usdb.int", 1)
 #print ReadInt("c:\PythonScripts\NushellScripts\usdb.int", 2)  
+
+#read the single particleoccupation numbers for a given nucleus
+def readOcc(sPath,nStates):
+  import numpy as np
+  fIn=open(sPath, 'r')
+#  skip firsth two lines
+  for nIdx in range(2):      
+    fIn.readline()
+  line=fIn.readline()
+  line=line.split()
+  npaOcc=[line[8:11]]
+  for nIdx in range(nStates-1):
+    line=fIn.readline()
+    line=line.split()
+    temp=[line[8:11]]
+    npaOcc=np.append(npaOcc, temp, axis=0)
+  return np.array(npaOcc,dtype=float)
+#test code for npa read occ
+#npaOcc=readOcc('C:\\rsh-nushellx\\test\\o_20b.occ',3)
+
+def singleParticleLeastSq(sPath, sExpPath, nStates):
+  import numpy
+  a=readOcc(sPath,nStates)
+  fLevelsExp=open(sExpPath)
+  nRownum=0
+  nIdx=0
+  npaEExp=[]
+  for sRow in fLevelsExp:
+      nRownum=nRownum+1
+      if nIdx<=nStates:
+        if nRownum>1:#skip header
+          saRowray=sRow.strip().split()
+          npaEExp.append(saRowray[0])
+          nIdx=nIdx+1;
+  npaEExp=numpy.array(npaEExp[1:],dtype=float)
+  print a
+  print npaEExp
+  ans=numpy.linalg.lstsq(a, npaEExp)
+  ans=ans[0]
+  return ans
+#  test splsq
+print singleParticleLeastSq('C:\\rsh-nushellx\\test\\o_20b.occ', 'C:\\rsh-nushellx\\test\\o_020exp.lpt', 3)
