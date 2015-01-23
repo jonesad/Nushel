@@ -145,7 +145,7 @@ def ReadInt(sPath, nBody):
 def readOcc(sPath,nStates):
   import numpy as np
   fIn=open(sPath, 'r')
-#  skip firsth two lines
+#  skip first 2 lines
   for nIdx in range(2):      
     fIn.readline()
   line=fIn.readline()
@@ -169,16 +169,15 @@ def singleParticleLeastSq(sPath, sExpPath, nStates):
   npaEExp=[]
   for sRow in fLevelsExp:
       nRownum=nRownum+1
-      if nIdx<=nStates:
+      if nIdx<nStates:
         if nRownum>1:#skip header
           saRowray=sRow.strip().split()
           npaEExp.append(saRowray[0])
           nIdx=nIdx+1;
-  npaEExp=numpy.array(npaEExp[1:],dtype=float)
-  print a
-  print npaEExp
+  npaEExp=numpy.array(npaEExp,dtype=float) #skip gs
+  npaEExp+=-23.75
   ans=numpy.linalg.lstsq(a, npaEExp)
   ans=ans[0]
   return ans
 #  test splsq
-print singleParticleLeastSq('C:\\rsh-nushellx\\test\\o_20b.occ', 'C:\\rsh-nushellx\\test\\o_020exp.lpt', 3)
+#ans, npaEExp, a=singleParticleLeastSq('C:\\rsh-nushellx\\test\\o_20b.occ', 'C:\\rsh-nushellx\\test\\o_020exp.lpt', 3)

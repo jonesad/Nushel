@@ -53,4 +53,29 @@ def OptUSDB(sBatPath, sIntPath, sEnPath, sEnPathEx):
   return res
   
 #test code runs simple test of OptUSDB
-OptUSDB( "c:\\rsh-nushellx\\test\\testit.bat", "c:\\rsh-nushellx\\test\\usdb.int", "c:\\rsh-nushellx\\test\\o_20b.lpt","c:\\rsh-nushellx\\test\\o_020exp.lpt")  
+#OptUSDB( "c:\\rsh-nushellx\\test\\testit.bat", "c:\\rsh-nushellx\\test\\usdb.int", "c:\\rsh-nushellx\\test\\o_20b.lpt","c:\\rsh-nushellx\\test\\o_020exp.lpt")  
+
+#iterative linear least square optimization scheme for use with shell model code.
+#optimizes only the spe for first few energies.  
+def ItLLSqOpt(sBatPath, sIntPath, sEnPath, sEnPathEx, sOccPath):
+  fResOld=1.0
+  fResNew=0.0
+  fun=lambda x: RunSm(sBatPath, sIntPath, sEnPath, sEnPathEx, x, nOBME)
+  import NushellUtil
+  ME1=NushellUtil.ReadInt(sIntPath, 1)
+  nOBME=len(ME1)
+  nIter=0
+  while abs(fResOld-fResNew) >= 0.00001 :  
+    fResOld=fResNew
+    npaOBME=NushellUtil.singleParticleLeastSq(sOccPath, sEnPathEx, 2)
+    fResNew=fun(npaOBME)
+    nIter+=1
+    print "\n\n Number of iterations is: "+str(nIter)
+    print " Res is: " +str(fResNew)
+    print" Stopping Criterion is "+str(abs(fResOld-fResNew))+"\n\n"
+    
+  return fResNew
+#test code for the Iterative llsq
+import sys
+sys.path.append("c:\PythonScripts\NushellScripts")
+print ItLLSqOpt("c:\\rsh-nushellx\\test\\testit.bat", "c:\\rsh-nushellx\\test\\usdb.int", "c:\\rsh-nushellx\\test\\o_20b.lpt","c:\\rsh-nushellx\\test\\o_020exp.lpt","c:\\rsh-nushellx\\test\\o_20b.occ")

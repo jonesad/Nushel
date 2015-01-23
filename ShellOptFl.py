@@ -9,11 +9,11 @@ Self contained utility classes for Shell Opt
 
 class MEhandler:
   'Takes lists of ME Types and the and list of lists of ME to be used in methods that read and write them. The nucleus class inherits from here.'
-  def __init__(self, anBody, sPath, sName, sInt, llspec=[[],[]]):
+  def __init__(self, anBody, sPath, sName, sInt, llMESpec=[[],[]]):
     #assign matrix element type specification    
     self.setmanBody(anBody)    
     #assign the list of ME specifications (tells shich ME to change
-    self.mllspec=llspec
+    self.llMESpec=llMESpec
     #assign path associated with list for reading and writing 
     self.sPath=str(sPath)
     #the Nucleus directory name
@@ -28,18 +28,19 @@ class MEhandler:
     #Determine what number of each type of ME are to be read and written
     self.nMEnum=[]
     for nIdx, elem in enumerate(anBody):
-      if len(self.mllspec[nIdx])!=0:
-        self.nMEnum.append(len(self.mllspec[nIdx]))
-      elif len(self.mllspec[nIdx])==0 and elem==1:
+      if len(self.llMESpec[nIdx])!=0:
+        self.nMEnum.append(len(self.llMESpec[nIdx]))
+      elif len(self.llMESpec[nIdx])==0 and elem==1:
         self.nMEnum.append(self.countOBME())
-      elif len(self.mllspec[nIdx])==0 and elem==2:
+      elif len(self.llMESpec[nIdx])==0 and elem==2:
         self.nMEnum.append(self.countTBME())
             
 # make the path of the interaction file   
   def makeIntPath(self, sPreExt=''):
     temp=str(self.sPath)+'\\'+str(self.sName)+'\\'+str(self.sInt)+str(sPreExt)+'.int'
     return temp
-    
+
+#write the obme to file
   def writeOBME(self, npaME):
     import shutil
     shutil.copyfile(self.makeIntPath(), self.makeIntPath('_'))
@@ -47,22 +48,23 @@ class MEhandler:
     fIntOut=open(self.makeIntPath(''),'w')
     for line in fIntSrc:
       if line[0]!='!':
-        line=line.strip().split()
         sStart="{0:3}{1:>11.4f}"
         sNext="{0:>10.4f}"
-        if len(self.mllspec[0])==0:
-          sNew=sStart.format(line[0],float(npaME[0]))
+        templine=line.strip().split()        
+        if len(self.llMESpec[0])==0:
+          sNew=sStart.format(templine[0],float(npaME[0]))
           for nElemIdx, elem in enumerate(npaME):
             if nElemIdx!=0:
               sNew=sNew+sNext.format(float(elem))
-              for i in range(len(line)-len(npaME)-1):
-                sNew=sNew+sNext.format(float(line[len(npaME)+i+1]))
+              for i in range(len(templine)-len(npaME)-1):
+                sNew=sNew+sNext.format(float(templine[len(npaME)+i+1]))
               fIntOut.write(sNew+"\n")
             else:
+#              print line              
               fIntOut.write(line)
-        elif len(self.mllSpec[0])!=0:
+        elif len(self.llMESpec[0])!=0:
           nLElIdx=0
-          for nElemIdx, elem in enumerate(self.mllSpec[0]):
+          for nElemIdx, elem in enumerate(self.llMESpec[0]):
             if nElemIdx==0 and elem==1:
               sNew=sStart.format(line[0],float(npaME[0]))
               nLElIdx+=1
@@ -77,26 +79,31 @@ class MEhandler:
             else:
               print "logic error"
               break
-        break            
+        else:
+          fIntOut.write(line)
+      else:
+        fIntOut.write(line)
     fIntSrc.close()
     fIntOut.close()
 #    get the one body matrix elements
   def getOBME(self):
     import numpy as np
-    if len(self.mllspec[0])==0:
+    if len(self.llMESpec[0])==0:
       nOBME=self.countOBME()
     else:
-      nOBME=len(self.mllspec[0])              
+      nOBME=len(self.llMESpec[0])              
     fIntSrc=open(self.makeIntPath(''),'r') 
     npaME=[]    
     for line in fIntSrc:
       if line[0]!='!':
-        line=line.strip().split()
-        if len(self.mllspec[0])==0:
+        if len(self.llMESpec[0])==0:
+          line=line.strip().split()
           npaME.append(line[1:1+nOBME])          
-        elif len(self.mllspec[0])!=0:
-          for elem in self.mllspec[0]:
-            print elem
+        elif len(self.llMESpec[0])!=0:
+#          print self.llMESpec
+          for elem in self.llMESpec[0]:
+#            print 'I am elem'            
+#            print elem
             npaME.append(line[int(elem)])
         break            
     fIntSrc.close()
@@ -114,14 +121,14 @@ class MEhandler:
     nUnCm=0
     for line in fIntSrc:
       if line[0]!='!':             
-        if  len(self.mllspec[1])==0 and nUnCm!=0:
+        if  len(self.llMESpec[1])==0 and nUnCm!=0:
           line=line.strip().split()
           for i in range(4):
             sNew=sNew+sStart.format(line[i])
           sNew=sNew+sNext.format(line[4],line[5], float(npaME[nElem]))
           fIntOut.write(sNew+"\n")          
           nElem=nElem+1
-        elif len(self.mllspec[1])!=0 and nUnCm!=0 and self.mllspec[1][nElem]==nUnCm:
+        elif len(self.llMESpec[1])!=0 and nUnCm!=0 and self.llMESpec[1][nElem]==nUnCm:
           line=line.strip().split()
           for i in range(4):
             sNew=sNew+sStart.format(line[i])
@@ -145,11 +152,11 @@ class MEhandler:
     nUnCm=0
     for line in fIntSrc:
       if line[0]!='!':             
-        if  len(self.mllspec[1])==0 and nUnCm!=0:
+        if  len(self.llMESpec[1])==0 and nUnCm!=0:
           line=line.strip().split()
           npaME.append(float(line[6]))          
           nElem=nElem+1
-        elif len(self.mllspec[1])!=0 and nUnCm!=0 and self.mllspec[1][nElem]==nUnCm:
+        elif len(self.llMESpec[1])!=0 and nUnCm!=0 and self.llMESpec[1][nElem]==nUnCm:
           line=line.strip().split()
           npaME.append(float(line[6]))         
           nElem=nElem+1

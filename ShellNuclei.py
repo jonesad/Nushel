@@ -13,7 +13,7 @@ import ShellOptFl
 class nucleus(ShellOptFl.MEhandler):
   'class for managing a single nucleus'
 #take the path and create a sub directory for the nucleus and run a default calculation for the nucleus.
-  def __init__(self,  nZ, nA,sPath, sMMDR, sPar, lsShared):
+  def __init__(self,  nZ, nA,sPath, sMMDR, sPar, lsShared,llMESpec):
     import os
     self.sPath=sPath
     self.nAZ=[nA,nZ]    
@@ -22,6 +22,7 @@ class nucleus(ShellOptFl.MEhandler):
       os.makedirs(sPath+'\\'+self.sName)
     self.writeAns(sMMDR, sPar,lsShared)
     self.sInt=lsShared[2]
+    self.llMESpec=llMESpec
     self.runSM()
     
 #make a '.ans' file for use with Nushellx   
@@ -48,39 +49,71 @@ class nucleus(ShellOptFl.MEhandler):
   
 #  Get the energy diff for the experimental and calculated levels 
   def Ediff(self):
-    fIn=open(self.sPath+"\\list.lpt")
-    sLevName=fIn.readline().strip()
+    fIn=open(self.sPath+'\\'+self.sName+"\\list.lpt")
+    sLevName=fIn.readline().strip()        
     fIn.close()
-    afETh=[]
-    afEExp=[]
-    fTh=open(self.sPath+"\\"+sLevName)
-    for line in fTh:
-      line=line.strip().split()
-      for lev in self.mllSpec:
-        lev=lev.strip().split()
-        if lev[0]==line[4] and lev[1]==line[6]:
-          afETh.append(float(line[3]))
-          break
-    fTh.close()      
-    fExp=open(self.sPath+"\\"+sLevName[0:1]+'0'+sLevName[2:3]+'exp.lpt')
-    for line in fTh:
-      line=line.strip().split()
-      for lev in self.mllSpec:
-        lev=lev.strip().split()
-        if lev[0]==line[1][1] and lev[1][0]==line[1][0]:
-          afEExp.append(float(line[0]))
-          break
-    fExp.close()
+    afETh=self.getEnNu(sLevName)
+    afEExp=self.getEExp(sLevName)
     import numpy as np
     #check if both the energies were found
-    if len(afEExp)!=len(afETh):
+    if len(afEExp)==len(afETh):
       res=np.absolute(np.array(afEExp)-np.array(afETh))
     else:
       #default value 
       res=np.array([float(abs(len(afEExp)-len(afETh))*100)])
+      print afEExp
+      print afETh
       print "Error: The number of Theoretical and experimental energies are not the same. Using default value of 100 MeV per missing level."
     return res
     
+# Get Nushell energies
+  def getEnNu(self,sLevName):
+    afETh=[]
+    fTh=open(self.sPath+'\\'+self.sName+"\\"+sLevName)
+    for line in fTh:
+      line=line.strip().split()
+      for lev in self.mllspec:
+        lev=lev.strip().split()
+#        print '\n\n'
+#        print lev
+#        print line
+#        print '\n\n'
+        if len(line)>=6 and lev[0]==line[4] and lev[1]==line[1] and lev[2]==line[6]:
+          afETh.append(float(line[3]))
+          break
+    fTh.close()
+    return afETh 
+
+#get experimental energy     
+  def getEExp(self,sLevName):     
+    import numpy as np
+    afEExp=[]
+    fExp=open(self.sPath+'\\'+self.sName+"\\"+sLevName[0:2]+'0'+sLevName[2:4]+'exp.lpt')
+    npaJ=np.zeros(len(self.mllspec))
+
+    for line in fExp:
+      line=line.strip().split()
+      for nlevIdx,lev in enumerate(self.mllspec):
+        lev=lev.strip().split()
+#        print '\n\n'
+#        print len(lev[1])
+#        print lev
+#        print '\n\n'
+
+        for string in line:
+#          print '\n\n'
+#          print string
+#          print lev
+#          print '\n\n'
+          print npaJ
+          if len (string)==2 and string[0]==lev[0][0] and string[1]==lev[2][0]:  
+            npaJ[nlevIdx]+=1
+            if  npaJ[nlevIdx]==lev[1]: 
+              afEExp.append(float(line[0]))
+              break
+    fExp.close()
+    return afEExp
+      
 #run the shell model calculation        
   def runSM(self):
     import os
