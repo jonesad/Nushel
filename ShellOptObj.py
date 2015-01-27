@@ -25,6 +25,8 @@ def CreateInFile(sInfilePath):
   fInFile.write('  8\n')
   #of nucleons
   fInFile.write('20\n')
+  #Experimental ground state energy of the nucleus
+  fInFile.write('-23.75\n')
   #min max delta j
   fInFile.write(' 0.0, 4.0, 1.0,\n')
   #parity
@@ -36,7 +38,7 @@ def CreateInFile(sInfilePath):
   fInFile.write('  2  1  +1\n')
   fInFile.write('  4  1  +1\n')    
   
-#code to crate an input file
+#code to create an input file
 CreateInFile('C:/PythonScripts/NushellScripts/OptInput.in')
 
 class ShellOpt:
@@ -46,9 +48,27 @@ class ShellOpt:
       self.sOutPath = sOutPath
       #get info from input file and initializes the nuclei objects
       self.GetIn()
+      
+   def IterativeLSq(self, fTol=10^-5, nMaxIter=100): 
+     fResLast=0
+     fResNew=100
+     nIter=0
+     while abs(fResLast-fResNew)>fTol and nIter<nMaxIter:
+       fResLast=fResNew
+       npaGuess=self.singleParticleLeastSq()
+       fResNew=self.obj(npaGuess)
+       nIter+=1
+       print fResNew
+     if abs(fResLast-fResNew)<fTol:
+       print 'Copleted Successfully'
+     else:
+       print 'Iteration max reached: ', nIter       
+     return fResNew
+       
+   def performOptimization(self, sMethod='Nelder-Mead', dOptions=None):
       npaGuess=self.mloNuclei[0].getME()
       from scipy.optimize import minimize
-      res = minimize(self.obj, npaGuess, method='COBYLA', options={'tol':0.0001,'rhobeg':0.1,'disp': True})
+      res = minimize(self.obj, npaGuess, method=sMethod, options=dOptions)
       print res
       
    def GetIn(self):
@@ -83,7 +103,7 @@ class ShellOpt:
      self.mnNuclei=int(fIn.readline().strip('\n'))
      self.mloNuclei=[]
      for nIdx in range(self.mnNuclei):
-       self.mloNuclei.append(ShellNuclei.nucleus(int(fIn.readline()),int(fIn.readline()),self.sOutPath,fIn.readline().strip('\n'),fIn.readline().strip('\n'),self.lsShared,llMESpec))
+       self.mloNuclei.append(ShellNuclei.nucleus(int(fIn.readline()),int(fIn.readline()),float(fIn.readline()),self.sOutPath,fIn.readline().strip('\n'),fIn.readline().strip('\n'),self.lsShared,llMESpec))
        llStateSpec=[]
        temp=int(fIn.readline())
        for iii in range(temp):
@@ -105,10 +125,41 @@ class ShellOpt:
        #run Shell model calc
        oNuc.runSM()
        #get the energy difference for the releveant particles
-       res.append(oNuc.Ediff())
+       temp=oNuc.Ediff()
+       for elem in temp:
+         res.append(elem)
        res=np.array(res)
+       print res
      return np.sqrt(np.dot(res,res)/float(len(res)))     
-import sys
+#returns the single particle energy lest square solution to the energy
+   def singleParticleLeastSq(self):
+     import numpy
+     a=[]
+     npaEExp=[]
+     for nucleus in self.mloNuclei:
+       fIn=open(nucleus.sPath+'\\'+nucleus.sName+"\\list.lpt")
+       sLevName=fIn.readline().strip()        
+       fIn.close() 
+       if a!=[]:
+         print 'a is:', a
+         print 'occupation is: ', nucleus.getOcc(sLevName)
+         a=numpy.append(a,nucleus.getOcc(sLevName),axis=0)
+       else:
+         a=numpy.array(nucleus.getOcc(sLevName))
+         print 'a is:', a
+       temp=numpy.array(nucleus.getEExp(sLevName),dtype=float)
+       temp+=nucleus.fGSE
+       if npaEExp!=[]:
+         npaEExp=numpy.append(npaEExp,temp,axis=0)
+         print 'EExp is: ', npaEExp
+       else: 
+         npaEExp=temp
+         print 'EExp is: ', npaEExp
+     ans=numpy.linalg.lstsq(a, npaEExp)
+     ans=ans[0]
+     return ans
 
+import sys
 sys.path.append('c:\\PythonScripts\\NushellScripts\\')     
 x=ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in','c:\\PythonScripts\\NushellScripts\\test')
+print x.IterativeLSq()

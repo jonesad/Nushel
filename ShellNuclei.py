@@ -13,7 +13,7 @@ import ShellOptFl
 class nucleus(ShellOptFl.MEhandler):
   'class for managing a single nucleus'
 #take the path and create a sub directory for the nucleus and run a default calculation for the nucleus.
-  def __init__(self,  nZ, nA,sPath, sMMDR, sPar, lsShared,llMESpec):
+  def __init__(self,  nZ, nA, fGSE,sPath, sMMDR, sPar, lsShared,llMESpec):
     import os
     self.sPath=sPath
     self.nAZ=[nA,nZ]    
@@ -24,6 +24,7 @@ class nucleus(ShellOptFl.MEhandler):
     self.sInt=lsShared[2]
     self.llMESpec=llMESpec
     self.runSM()
+    self.fGSE=fGSE
     
 #make a '.ans' file for use with Nushellx   
   def writeAns(self, sMMDR, sPar,lsShared):
@@ -105,10 +106,12 @@ class nucleus(ShellOptFl.MEhandler):
 #          print string
 #          print lev
 #          print '\n\n'
-          print npaJ
+#          print npaJ
           if len (string)==2 and string[0]==lev[0][0] and string[1]==lev[2][0]:  
             npaJ[nlevIdx]+=1
-            if  npaJ[nlevIdx]==lev[1]: 
+            print int(npaJ[nlevIdx]), int(lev[1])
+            if  int(npaJ[nlevIdx])==int(lev[1]):
+              print 'chck 2 passed'
               afEExp.append(float(line[0]))
               break
     fExp.close()
@@ -122,4 +125,28 @@ class nucleus(ShellOptFl.MEhandler):
     #print os.getcwd()    
     os.system('shell '+self.sName+'.ans')
     os.system(self.sName)    
-    
+
+#get the occupation numbers   
+  def getOcc(self, sLevName):
+      import numpy as np
+      fIn=open(self.sPath+'\\'+self.sName+'\\'+sLevName[:-4]+'.occ', 'r')
+      npaOcc=[]
+      nIdx=0
+      for line in fIn:
+        line=line.strip().split()
+        if nIdx<2:
+          continue
+        else:
+          nIdx+=1
+        for nlevIdx,lev in enumerate(self.mllspec):
+          lev=lev.strip().split()
+          print int(line[0]), int(lev[0]), int(line[2]), int(lev[1])
+          if int(line[0])==int(lev[0]) and int(line[2])==int(lev[1]):
+            if npaOcc!=[]:
+              temp=[line[8:11]]
+              npaOcc=temp
+            else:
+              temp=[line[8:11]]
+              npaOcc=np.append(npaOcc, temp, axis=0)
+      fIn.close()
+      return np.array(npaOcc,dtype=float)
