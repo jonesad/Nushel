@@ -55,7 +55,10 @@ class ShellOpt:
       import os
       if not os.path.exists(self.sOutPath+'\\'+'tracking'):
         os.makedirs(self.sOutPath+'\\'+'tracking')
-
+   
+   def testMERW(self):
+     self.mloNuclei[0].takeME([1,2,3])
+   
    def IterativeLSq(self, fTol=10^-5, nMaxIter=100): 
      fResLast=0
      fResNew=100
@@ -173,10 +176,11 @@ class ShellOpt:
 #         print 'EExp is: ', npaEExp
      ans=numpy.linalg.lstsq(a, npaEExp)
      ans=ans[0]
-     return ans
+     return a, npaEExp, ans
 
 import sys
 sys.path.append('c:\\PythonScripts\\NushellScripts\\')     
 x=ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in','c:\\PythonScripts\\NushellScripts\\test')
-print x.IterativeLSq()
+#x.testMERW()
+#print x.IterativeLSq()
 #x.performOptimization()

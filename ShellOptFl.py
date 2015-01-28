@@ -46,23 +46,23 @@ class MEhandler:
     shutil.copyfile(self.makeIntPath(), self.makeIntPath('_'))
     fIntSrc=open(self.makeIntPath('_'),'r') 
     fIntOut=open(self.makeIntPath(''),'w')
+    nLine=0
     for line in fIntSrc:
       if line[0]!='!':
+        sNew=[]
         sStart="{0:3}{1:>11.4f}"
         sNext="{0:>10.4f}"
         templine=line.strip().split()        
-        if len(self.llMESpec[0])==0:
+        if len(self.llMESpec[0])==0 and nLine==0:          
           sNew=sStart.format(templine[0],float(npaME[0]))
+#          print npaME
           for nElemIdx, elem in enumerate(npaME):
             if nElemIdx!=0:
               sNew=sNew+sNext.format(float(elem))
-              for i in range(len(templine)-len(npaME)-1):
-                sNew=sNew+sNext.format(float(templine[len(npaME)+i+1]))
-              fIntOut.write(sNew+"\n")
-            else:
-#              print line              
-              fIntOut.write(line)
-        elif len(self.llMESpec[0])!=0:
+          for i in range(len(templine)-len(npaME)-1):
+              sNew=sNew+sNext.format(float(templine[len(npaME)+i+1]))
+          fIntOut.write(sNew+"\n")
+        elif len(self.llMESpec[0])!=0 and nLine==0:
           nLElIdx=0
           for nElemIdx, elem in enumerate(self.llMESpec[0]):
             if nElemIdx==0 and elem==1:
@@ -81,8 +81,10 @@ class MEhandler:
               break
         else:
           fIntOut.write(line)
+        nLine+=1
       else:
         fIntOut.write(line)
+        
     fIntSrc.close()
     fIntOut.close()
 #    get the one body matrix elements
@@ -186,9 +188,10 @@ class MEhandler:
     npaTBME=[]
     for nCt, elem in enumerate(self.nMEnum):
       if self.manBody[nCt]==1:
-        npaOBME=npaME[sum(self.nMEnum[:nCt]):sum(self.nMEnum[:nCt])+1]
+        npaOBME=npaME[sum(self.nMEnum[:nCt]):sum(self.nMEnum[:nCt+1])]
+#        print npaOBME
       elif self.manBody[nCt]==2:
-        npaTBME=npaME[sum(self.nMEnum[:nCt]):sum(self.nMEnum[:nCt])+1]      
+        npaTBME=npaME[sum(self.nMEnum[:nCt]):sum(self.nMEnum[:nCt+1])]      
     if len(npaOBME)>0:
       self.writeOBME(npaOBME) 
     if len(npaTBME)>0:
