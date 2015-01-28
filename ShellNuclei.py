@@ -13,18 +13,21 @@ import ShellOptFl
 class nucleus(ShellOptFl.MEhandler):
   'class for managing a single nucleus'
 #take the path and create a sub directory for the nucleus and run a default calculation for the nucleus.
-  def __init__(self,  nZ, nA, fGSE,sPath, sMMDR, sPar, lsShared,llMESpec):
+  def __init__(self,  nZ, nA, fGSE,sPath, sMMDR, sPar, lsShared,llMESpec,useGS):
     import os
     self.sPath=sPath
     self.nAZ=[nA,nZ]    
     self.sName='A'+str(nA)+'_Z'+str(nZ)
     if not os.path.exists(sPath+'\\'+self.sName):
-      os.makedirs(sPath+'\\'+self.sName)
+      os.makedirs(self.sPath+'\\'+self.sName)
+    if not os.path.exists(sPath+'\\'+self.sName+'\\'+'tracking'):
+      os.makedirs(self.sPath+'\\'+self.sName+'\\'+'tracking')  
     self.writeAns(sMMDR, sPar,lsShared)
     self.sInt=lsShared[2]
     self.llMESpec=llMESpec
     self.runSM()
     self.fGSE=fGSE
+    self.useGS=useGS
     
 #make a '.ans' file for use with Nushellx   
   def writeAns(self, sMMDR, sPar,lsShared):
@@ -43,10 +46,30 @@ class nucleus(ShellOptFl.MEhandler):
     fAns.write("--------------------------------------------------\n")
     fAns.write("st                   ! option \n")
     fAns.close()
+    
+  def writeStatus(self):
+    fIn=open(self.sPath+'\\'+self.sName+"\\list.lpt")
+    sLevName=fIn.readline().strip()        
+    fIn.close()
+    
+    fOut=open(self.sPath+'\\'+self.sName+'\\'+'tracking'+'\\energy.dat','a+')
+    string=''
+    for energy in self.getEnNu(sLevName):
+      string=string+str(energy)+'\t'    
+    fOut.write(string+'\n')
+    fOut.close()
+    
+    string=''
+    fOut=open(self.sPath+'\\'+self.sName+'\\'+'tracking'+'\\occupation.dat','a+')    
+    for occ in self.getOcc(sLevName):
+      string=string+str(occ)+'\t'   
+    fOut.write(string+'\n')
+    fOut.close()
   
   #Store attribute LLspec for later use (separate from initialization)
   def setLevels(self, llSpec):
     self.mllspec=llSpec
+    self.writeStatus()
   
 #  Get the energy diff for the experimental and calculated levels 
   def Ediff(self):
@@ -80,7 +103,10 @@ class nucleus(ShellOptFl.MEhandler):
 #        print line
 #        print '\n\n'
         if len(line)>=6 and lev[0]==line[4] and lev[1]==line[1] and lev[2]==line[6]:
-          afETh.append(float(line[3]))
+          if self.useGS==0:
+            afETh.append(float(line[3]))
+          elif self.useGS==1:
+            afETh.append(float(line[2]))
           break
     fTh.close()
     return afETh 
@@ -109,12 +135,15 @@ class nucleus(ShellOptFl.MEhandler):
 #          print npaJ
           if len (string)==2 and string[0]==lev[0][0] and string[1]==lev[2][0]:  
             npaJ[nlevIdx]+=1
-            print int(npaJ[nlevIdx]), int(lev[1])
+#            print int(npaJ[nlevIdx]), int(lev[1])
             if  int(npaJ[nlevIdx])==int(lev[1]):
-              print 'chck 2 passed'
+#              print 'chck 2 passed'
               afEExp.append(float(line[0]))
               break
     fExp.close()
+    afEExp=np.array(afEExp)
+    if self.useGS==1:
+      afEExp=afEExp+self.fGSE
     return afEExp
       
 #run the shell model calculation        
@@ -135,18 +164,19 @@ class nucleus(ShellOptFl.MEhandler):
       for line in fIn:
         line=line.strip().split()
         if nIdx<2:
-          continue
-        else:
           nIdx+=1
+          continue
         for nlevIdx,lev in enumerate(self.mllspec):
           lev=lev.strip().split()
-          print int(line[0]), int(lev[0]), int(line[2]), int(lev[1])
-          if int(line[0])==int(lev[0]) and int(line[2])==int(lev[1]):
+#          print line
+#          print lev
+          if int(line[3])==2*int(lev[0]) and int(line[1])==int(lev[1]):
             if npaOcc!=[]:
               temp=[line[8:11]]
-              npaOcc=temp
+              npaOcc=np.append(npaOcc, temp, axis=0)              
             else:
               temp=[line[8:11]]
-              npaOcc=np.append(npaOcc, temp, axis=0)
+              npaOcc=temp
+
       fIn.close()
       return np.array(npaOcc,dtype=float)

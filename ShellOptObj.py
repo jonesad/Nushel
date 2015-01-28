@@ -44,11 +44,18 @@ CreateInFile('C:/PythonScripts/NushellScripts/OptInput.in')
 class ShellOpt:
    'Class for shell model hamiltonian optimization problems'
    def __init__(self, sInPath, sOutPath):
+#flag that says to use the groundstate energy in optimization
+      self.useGS=1
+#flag that tracks the residue and energy levels over the iterations 
+      self.track=1
       self.sInPath = sInPath
       self.sOutPath = sOutPath
       #get info from input file and initializes the nuclei objects
       self.GetIn()
-      
+      import os
+      if not os.path.exists(self.sOutPath+'\\'+'tracking'):
+        os.makedirs(self.sOutPath+'\\'+'tracking')
+
    def IterativeLSq(self, fTol=10^-5, nMaxIter=100): 
      fResLast=0
      fResNew=100
@@ -59,10 +66,12 @@ class ShellOpt:
        fResNew=self.obj(npaGuess)
        nIter+=1
        print fResNew
+            
      if abs(fResLast-fResNew)<fTol:
-       print 'Copleted Successfully'
+       print 'Completed Successfully'
      else:
        print 'Iteration max reached: ', nIter       
+     
      return fResNew
        
    def performOptimization(self, sMethod='Nelder-Mead', dOptions=None):
@@ -81,9 +90,9 @@ class ShellOpt:
          anBody=[]
          sTempL=fIn.readline()
          sTempL=sTempL.split()
-         print '\n\n'
-         print sTempL
-         print '\n\n'
+#         print '\n\n'
+#         print sTempL
+#         print '\n\n'
          if sTempL[0]=='OBME':
            anBody.append(1)
            if len(sTempL[1:])!=0:
@@ -103,12 +112,12 @@ class ShellOpt:
      self.mnNuclei=int(fIn.readline().strip('\n'))
      self.mloNuclei=[]
      for nIdx in range(self.mnNuclei):
-       self.mloNuclei.append(ShellNuclei.nucleus(int(fIn.readline()),int(fIn.readline()),float(fIn.readline()),self.sOutPath,fIn.readline().strip('\n'),fIn.readline().strip('\n'),self.lsShared,llMESpec))
+       self.mloNuclei.append(ShellNuclei.nucleus(int(fIn.readline()),int(fIn.readline()),float(fIn.readline()),self.sOutPath,fIn.readline().strip('\n'),fIn.readline().strip('\n'),self.lsShared,llMESpec,self.useGS))
        llStateSpec=[]
        temp=int(fIn.readline())
        for iii in range(temp):
          llStateSpec.append(fIn.readline().strip('\n'))
-       print llStateSpec
+#       print llStateSpec
        self.mloNuclei[nIdx].setLevels(llStateSpec)
        self.mloNuclei[nIdx].setmanBody(anBody) 
 #       print self.mloNuclei[nIdx].countOBME()
@@ -129,8 +138,16 @@ class ShellOpt:
        for elem in temp:
          res.append(elem)
        res=np.array(res)
-       print res
-     return np.sqrt(np.dot(res,res)/float(len(res)))     
+     
+     print res
+     temp=np.sqrt(np.dot(res,res)/float(len(res)))
+     if self.track==1:
+       fOut=open(self.sOutPath+'\\'+'tracking'+'\\res.dat','a+')
+       fOut.write(str(temp)+'\n')
+       fOut.close()
+       for oNucleus in self.mloNuclei:
+         oNucleus.writeStatus()
+     return temp      
 #returns the single particle energy lest square solution to the energy
    def singleParticleLeastSq(self):
      import numpy
@@ -141,20 +158,19 @@ class ShellOpt:
        sLevName=fIn.readline().strip()        
        fIn.close() 
        if a!=[]:
-         print 'a is:', a
-         print 'occupation is: ', nucleus.getOcc(sLevName)
+#         print 'a is:', a
+#         print 'occupation is: ', nucleus.getOcc(sLevName)
          a=numpy.append(a,nucleus.getOcc(sLevName),axis=0)
        else:
          a=numpy.array(nucleus.getOcc(sLevName))
-         print 'a is:', a
+#         print 'a is:', a
        temp=numpy.array(nucleus.getEExp(sLevName),dtype=float)
-       temp+=nucleus.fGSE
        if npaEExp!=[]:
          npaEExp=numpy.append(npaEExp,temp,axis=0)
-         print 'EExp is: ', npaEExp
+#         print 'EExp is: ', npaEExp
        else: 
          npaEExp=temp
-         print 'EExp is: ', npaEExp
+#         print 'EExp is: ', npaEExp
      ans=numpy.linalg.lstsq(a, npaEExp)
      ans=ans[0]
      return ans
@@ -163,3 +179,4 @@ import sys
 sys.path.append('c:\\PythonScripts\\NushellScripts\\')     
 x=ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in','c:\\PythonScripts\\NushellScripts\\test')
 print x.IterativeLSq()
+#x.performOptimization()
