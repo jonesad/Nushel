@@ -19,8 +19,7 @@ class MEhandler:
     #the Nucleus directory name
     self.sName=str(sName)
     #interaction name string without the .int extension
-    self.sInt=str(sInt)
-        
+    self.sInt=str(sInt)        
     
 #set manBody outside of initialization
   def setmanBody(self, anBody):
@@ -36,8 +35,12 @@ class MEhandler:
         self.nMEnum.append(self.countTBME())
             
 # make the path of the interaction file   
-  def makeIntPath(self, sPreExt=''):
-    temp=str(self.sPath)+'\\'+str(self.sName)+'\\'+str(self.sInt)+str(sPreExt)+'.int'
+  def makeIntPath(self, sPreExt='', nExtrap=0):
+    if nExtrap==0:
+      temp=str(self.sPath)+'\\'+str(self.sName)+'\\'+str(self.sInt)+str(sPreExt)+'.int'
+    elif nExtrap==1:
+      sLevName=self.getLevName()
+      temp=str(self.sPath)+'\\'+str(self.sName)+'\\'+sLevName[:-5]+'0'+str(sPreExt)+'.int'      
     return temp
 
 #write the obme to file
@@ -53,7 +56,9 @@ class MEhandler:
         sStart="{0:3}{1:>11.4f}"
         sNext="{0:>10.4f}"
         templine=line.strip().split()        
-        if len(self.llMESpec[0])==0 and nLine==0:          
+        if len(self.llMESpec[0])==0 and nLine==0:
+#          print templine
+#          print npaME[0]
           sNew=sStart.format(templine[0],float(npaME[0]))
 #          print npaME
           for nElemIdx, elem in enumerate(npaME):
@@ -144,27 +149,54 @@ class MEhandler:
       nUnCm+=1
       fIntSrc.close()
       fIntOut.close()
-
 #Get TBME
-  def getTBME(self):
-    fIntSrc=open(self.makeIntPath(''),'r') 
+  def getTBME(self, nExtrap=0):
+    fIntSrc=open(self.makeIntPath('',nExtrap),'r') 
     import numpy as np
-    npaME=np.array([])
+    npaME=[]
     nElem=0
     nUnCm=0
     for line in fIntSrc:
-      if line[0]!='!':             
+      if line[0]!='!':
         if  len(self.llMESpec[1])==0 and nUnCm!=0:
           line=line.strip().split()
-          npaME.append(float(line[6]))          
+#          print npaME
+          if npaME!=[]:
+            npaME.append(float(line[6]))
+          else:            
+            npaME=[line[6]]
           nElem=nElem+1
         elif len(self.llMESpec[1])!=0 and nUnCm!=0 and self.llMESpec[1][nElem]==nUnCm:
           line=line.strip().split()
           npaME.append(float(line[6]))         
           nElem=nElem+1
-      nUnCm+=1
-      fIntSrc.close()
-      return npaME
+        nUnCm+=1
+    fIntSrc.close()
+    return np.array(npaME,dtype=float)
+#get label
+  def getLabel(self): 
+    fIntSrc=open(self.makeIntPath(''),'r') 
+    import numpy as np
+    npaLabel=np.array([])
+    nElem=0
+    nUnCm=0
+    for line in fIntSrc:
+#      print line
+#      print nUnCm
+      if line[0]!='!':
+        if nUnCm>1: 
+          line=line.strip().split()
+          temp=[]
+          for elem in line[0:6]:
+            temp.append(int(elem))
+          if npaLabel!=np.array([]):
+            npaLabel=np.append(npaLabel,[temp],axis=0)
+          else:
+            npaLabel=[temp]
+          nElem=nElem+1
+        nUnCm+=1
+    fIntSrc.close()
+    return npaLabel
       
   #return total number of OBME in the interaction file 
   def countOBME(self):

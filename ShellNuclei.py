@@ -24,6 +24,10 @@ class nucleus(ShellOptFl.MEhandler):
       os.makedirs(self.sPath+'\\'+self.sName+'\\'+'tracking')  
     self.writeAns(sMMDR, sPar,lsShared)
     self.sInt=lsShared[2]
+#    import time
+#    if llMESpec==[[],[]]:
+#      print 'Warning no matrix elements specified...'
+#      time.sleep(2)
     self.llMESpec=llMESpec
     self.runSM()
     self.fGSE=fGSE
@@ -47,18 +51,14 @@ class nucleus(ShellOptFl.MEhandler):
     fAns.write("st                   ! option \n")
     fAns.close()
     
-  def writeStatus(self):
-    fIn=open(self.sPath+'\\'+self.sName+"\\list.lpt")
-    sLevName=fIn.readline().strip()        
-    fIn.close()
-    
+  def writeStatus(self):    
     fOut=open(self.sPath+'\\'+self.sName+'\\'+'tracking'+'\\energy.dat','a+')
     string=''
-    for energy in self.getEnNu(sLevName):
+    for energy in self.getEnNu():
       string=string+str(energy)+'\t'    
     fOut.write(string+'\n')
     fOut.close()
-    
+    sLevName=self.getLevName()
     string=''
     fOut=open(self.sPath+'\\'+self.sName+'\\'+'tracking'+'\\occupation.dat','a+')    
     for occ in self.getOcc(sLevName):
@@ -70,14 +70,16 @@ class nucleus(ShellOptFl.MEhandler):
   def setLevels(self, llSpec):
     self.mllspec=llSpec
     self.writeStatus()
-  
+    
+  def getLevName(self):
+    fIn=open(self.sPath+'\\'+self.sName+"\\list.lpt")
+    sLevName=fIn.readline().strip()
+    fIn.close()
+    return sLevName
 #  Get the energy diff for the experimental and calculated levels 
   def Ediff(self):
-    fIn=open(self.sPath+'\\'+self.sName+"\\list.lpt")
-    sLevName=fIn.readline().strip()        
-    fIn.close()
-    afETh=self.getEnNu(sLevName)
-    afEExp=self.getEExp(sLevName)
+    afETh=self.getEnNu()
+    afEExp=self.getEExp()
     import numpy as np
     #check if both the energies were found
     if len(afEExp)==len(afETh):
@@ -91,7 +93,8 @@ class nucleus(ShellOptFl.MEhandler):
     return res
     
 # Get Nushell energies
-  def getEnNu(self,sLevName):
+  def getEnNu(self):
+    sLevName=self.getLevName()
     afETh=[]
     fTh=open(self.sPath+'\\'+self.sName+"\\"+sLevName)
     for line in fTh:
@@ -112,9 +115,11 @@ class nucleus(ShellOptFl.MEhandler):
     return afETh 
 
 #get experimental energy     
-  def getEExp(self,sLevName):     
+  def getEExp(self):     
     import numpy as np
+    sLevName=self.getLevName()
     afEExp=[]
+#    print self.sPath+'\\'+self.sName+"\\"+sLevName[0:2]+'0'+sLevName[2:4]+'exp.lpt'
     fExp=open(self.sPath+'\\'+self.sName+"\\"+sLevName[0:2]+'0'+sLevName[2:4]+'exp.lpt')
     npaJ=np.zeros(len(self.mllspec))
 
@@ -129,11 +134,12 @@ class nucleus(ShellOptFl.MEhandler):
 
         for string in line:
 #          print '\n\n'
-#          print string
-#          print lev
+#          print len(string)
+#          print len(lev[0])+1
 #          print '\n\n'
 #          print npaJ
-          if len (string)==2 and string[0]==lev[0][0] and string[1]==lev[2][0]:  
+
+          if len(string)==len(lev[0])+1 and  string[:-1]==lev[0] and string[-1]==lev[2][0]:  
             npaJ[nlevIdx]+=1
 #            print int(npaJ[nlevIdx]), int(lev[1])
             if  int(npaJ[nlevIdx])==int(lev[1]):
@@ -141,9 +147,13 @@ class nucleus(ShellOptFl.MEhandler):
               afEExp.append(float(line[0]))
               break
     fExp.close()
+#    print afEExp
     afEExp=np.array(afEExp)
+#    print afEExp
     if self.useGS==1:
       afEExp=afEExp+self.fGSE
+#      print afEExp
+#      print self.fGSE
     return afEExp
       
 #run the shell model calculation        
@@ -153,8 +163,25 @@ class nucleus(ShellOptFl.MEhandler):
     os.chdir(self.sPath+'\\'+self.sName)
     #print os.getcwd()    
     os.system('shell '+self.sName+'.ans')
-    os.system(self.sName)    
+    os.system(self.sName)
 
+#monopole calc
+  def calcMono(self):
+    sLevName=self.getLevName()
+    npaTBME=self.getTBME(1)
+    npaLabel=self.getLabel()
+    npaOcc=self.getOcc(sLevName)
+    import numpy as np
+    npaMono=np.zeros(self.countOBME())
+    for nIdx in range(len(npaMono)):         
+      for TBME, Label in zip(npaTBME, npaLabel):
+        if Label[0]==Label[3] and Label[2]==Label[4]:
+          if Label[0]!=Label[2]: 
+            npaMono[nIdx]+=npaOcc[nIdx][int(Label[0])-1]*npaOcc[nIdx][int(Label[2])-1]*TBME
+          else:
+            npaMono[nIdx]+=(1.0-npaOcc[nIdx][int(Label[0])-1])*TBME/2.0
+    return npaMono    
+  
 #get the occupation numbers   
   def getOcc(self, sLevName):
       import numpy as np
@@ -168,14 +195,12 @@ class nucleus(ShellOptFl.MEhandler):
           continue
         for nlevIdx,lev in enumerate(self.mllspec):
           lev=lev.strip().split()
-#          print line
-#          print lev
-          if int(line[3])==2*int(lev[0]) and int(line[1])==int(lev[1]):
-            if npaOcc!=[]:
-              temp=[line[8:11]]
+          if int(line[3])==int(2*float(eval(lev[0]+'.0'))) and int(line[1])==int(lev[1]):
+            temp=line[8:11]
+            temp=[temp]
+            if npaOcc!=[]:              
               npaOcc=np.append(npaOcc, temp, axis=0)              
             else:
-              temp=[line[8:11]]
               npaOcc=temp
 
       fIn.close()
