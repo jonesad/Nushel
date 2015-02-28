@@ -111,6 +111,10 @@ class nucleus(ShellOptFl.MEhandler):
           elif self.useGS==1:
             afETh.append(float(line[2]))
           break
+    if len(afETh)!=len(self.mllspec):
+      print "Error: # of Theory levels found does not match requested # in nAZ=", self.nAZ
+      print "Requested:", len(self.mllspec)
+      print "Found:", len(afETh)
     fTh.close()
     return afETh 
 
@@ -154,6 +158,11 @@ class nucleus(ShellOptFl.MEhandler):
       afEExp=afEExp+self.fGSE
 #      print afEExp
 #      print self.fGSE
+    if len(afEExp)!=len(self.mllspec):
+      print "Error: # of Experimental levels found does not match requested # in nAZ=", self.nAZ
+      print "Requested:", len(self.mllspec)
+      print "Found:", len(afEExp)
+
     return afEExp
       
 #run the shell model calculation        
@@ -164,23 +173,69 @@ class nucleus(ShellOptFl.MEhandler):
     #print os.getcwd()    
     os.system('shell '+self.sName+'.ans')
     os.system(self.sName)
+#get the labels for the monopole matrix elements
+  def getMonoLabel(self):
+    import numpy as np
+    npaLabel=self.getLabel()
+    npaMonoLabel=np.array([])
+    nMono=0
+    for nIdx in range(npaLabel.shape[0]):
+      nIsit=0
+      if npaLabel[nIdx,1]==npaLabel[nIdx,3] and npaLabel[nIdx,0]==npaLabel[nIdx,2] :
+        nMono+=1
+        for nJj in range(npaMonoLabel.shape[0]):
+          if npaMonoLabel!=np.array([]):
+            if npaMonoLabel.size==4 and np.all(npaMonoLabel==npaLabel[nIdx,:4]):
+              nIsit=1
+              break
+            elif npaMonoLabel.size>4: 
+              if np.all(npaLabel[nIdx,:4]==npaMonoLabel[nJj,:]):
+                nIsit=1
+                break
+      else:
+        nIsit=1        
 
-#monopole calc
-  def calcMono(self):
+      if nIsit==0:
+        if npaMonoLabel!=np.array([]):
+          npaMonoLabel=np.append(npaMonoLabel,np.array([npaLabel[nIdx,:4]]),0)
+        else:
+          npaMonoLabel=np.array([npaLabel[nIdx,:4]])
+    return npaMonoLabel
+
+
+#monopole term calculation works with p-n formalism matrix element labels
+  def calcMonoOcc(self):
     sLevName=self.getLevName()
-    npaTBME=self.getTBME(1)
     npaLabel=self.getLabel()
     npaOcc=self.getOcc(sLevName)
     import numpy as np
-    npaMono=np.zeros(self.countOBME())
-    for nIdx in range(len(npaMono)):         
-      for TBME, Label in zip(npaTBME, npaLabel):
-        if Label[0]==Label[3] and Label[2]==Label[4]:
-          if Label[0]!=Label[2]: 
-            npaMono[nIdx]+=npaOcc[nIdx][int(Label[0])-1]*npaOcc[nIdx][int(Label[2])-1]*TBME
+    nMonoSize=self.getMonoME().size    
+    npaMono=np.zeros([npaOcc.shape[0],nMonoSize])
+#    print npaOcc.shape[0], nMonoSize
+
+    denom=np.zeros(npaMono.shape)
+    for nLevIdx in range(npaMono.shape[0]):    
+      nMono=0
+      for nIdx in range(npaLabel.shape[0]):        
+#        print npaLabel[nLevIdx,1], npaLabel[nLevIdx,3]
+#        print npaLabel[nLevIdx,1]==npaLabel[nLevIdx,3]
+#        print npaLabel[nLevIdx,0], npaLabel[nLevIdx,2]
+#        print npaLabel[nLevIdx,0]==npaLabel[nLevIdx,2]
+#        print npaLabel[nLevIdx,4]
+#        print npaLabel[nLevIdx,:]
+        if npaLabel[nIdx,1]==npaLabel[nIdx,3] and npaLabel[nIdx,0]==npaLabel[nIdx,2] and npaLabel[nIdx,4]!=0:
+          temp=float(npaLabel[nIdx,4]*(npaLabel[nIdx,4]+1))
+          if npaLabel[nIdx,0]!=npaLabel[nIdx,1]:
+            npaMono[nLevIdx,nMono]+=npaOcc[nLevIdx,int(npaLabel[nIdx,0]-1)]*npaOcc[nLevIdx,int(npaLabel[nIdx,1]-1)]*temp
           else:
-            npaMono[nIdx]+=(1.0-npaOcc[nIdx][int(Label[0])-1])*TBME/2.0
-    return npaMono    
+            npaMono[nLevIdx,nMono]+=npaOcc[nLevIdx,int(npaLabel[nIdx,0]-1)]*(npaOcc[nLevIdx,int(npaLabel[nIdx,1]-1)]-1.0)*temp/2.0
+          denom[nLevIdx,nMono]+=temp
+          nMono+=1
+    npaMono=np.divide(npaMono,denom)
+#    print npaMono.max()
+#    print npaMono
+    temp=np.append(npaOcc,npaMono,axis=1)
+    return temp    
   
 #get the occupation numbers   
   def getOcc(self, sLevName):
@@ -196,7 +251,7 @@ class nucleus(ShellOptFl.MEhandler):
         for nlevIdx,lev in enumerate(self.mllspec):
           lev=lev.strip().split()
           if int(line[3])==int(2*float(eval(lev[0]+'.0'))) and int(line[1])==int(lev[1]):
-            temp=line[8:11]
+            temp=line[5:11]
             temp=[temp]
             if npaOcc!=[]:              
               npaOcc=np.append(npaOcc, temp, axis=0)              
@@ -205,3 +260,4 @@ class nucleus(ShellOptFl.MEhandler):
 
       fIn.close()
       return np.array(npaOcc,dtype=float)
+      

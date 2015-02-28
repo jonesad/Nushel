@@ -10,17 +10,23 @@ attempt at object orientation of nushell optimization
 def CreateInFile(sInfilePath):
   fInFile=open(sInfilePath,'w')
   # lines in me spec
-  fInFile.write('1\n')
+  fInFile.write('2\n')
   # matrix element specification
+  #Single particle
   fInFile.write('OBME\n')
+#  monopole (diagonal 2 body)
+  fInFile.write('MONO\n')  
   #model space specification
-  fInFile.write('sd\n')
+  fInFile.write('sdpn\n')
   #restriction
   fInFile.write('n\n')
   #interaction
-  fInFile.write('usdb\n')
+  fInFile.write('usdbpn\n')
+  #formalism iso/pn
+  fInFile.write('pn\n')
+  
   #number of nuclei used in optimization
-  fInFile.write('4\n')
+  fInFile.write('8\n')
 
   #number of protons 
   fInFile.write('  8\n')
@@ -49,12 +55,34 @@ def CreateInFile(sInfilePath):
   #parity
   fInFile.write('  0\n')
   #number of states used in optimization
-  fInFile.write('3\n')
+  fInFile.write('4\n')
   #state specifications (J, nJ, P)
   fInFile.write('  0  1  +1\n')
   fInFile.write('  2  1  +1\n')
   fInFile.write('  4  1  +1\n')    
+  fInFile.write('  3  1  +1\n')    
  
+  #number of protons 
+  fInFile.write('  8\n')
+  #of nucleons
+  fInFile.write('19\n')
+  #Experimental ground state energy of the nucleus
+  fInFile.write('-16.14\n')
+  #min max delta j
+  fInFile.write(' 0.5, 4.5, 1.0,\n')
+  #parity
+  fInFile.write('  0\n')
+  #number of states used in optimization
+  fInFile.write('7\n')
+  #state specifications (J, nJ, P)
+  fInFile.write('  5/2  1  +1\n')
+  fInFile.write('  3/2  1  +1\n')    
+  fInFile.write('  1/2  1  +1\n')    
+  fInFile.write('  9/2  1  +1\n')    
+  fInFile.write('  7/2  1  +1\n')    
+  fInFile.write('  5/2  2  +1\n')
+  fInFile.write('  3/2  2  +1\n')    
+    
  #number of protons 
   fInFile.write('  8\n')
   #of nucleons
@@ -66,12 +94,34 @@ def CreateInFile(sInfilePath):
   #parity
   fInFile.write('  0\n')
   #number of states used in optimization
-  fInFile.write('3\n')
+  fInFile.write('5\n')
   #state specifications (J, nJ, P)
   fInFile.write('  0  1  +1\n')
   fInFile.write('  2  1  +1\n')
   fInFile.write('  4  1  +1\n')    
-  
+  fInFile.write('  2  2  +1\n')
+  fInFile.write('  0  2  +1\n')
+#
+#  #number of protons 
+#  fInFile.write('  8\n')
+#  #of nucleons
+#  fInFile.write('21\n')
+#  #Experimental ground state energy of the nucleus
+#  fInFile.write('-27.56\n')
+#  #min max delta j
+#  fInFile.write(' 0.5, 4.5, 1.0,\n')
+#  #parity
+#  fInFile.write('  0\n')
+#  #number of states used in optimization
+#  fInFile.write('6\n')
+#  #state specifications (J, nJ, P)
+#  fInFile.write('  5/2  1  +1\n')
+#  fInFile.write('  1/2  1  +1\n')    
+#  fInFile.write('  3/2  1  +1\n')    
+#  fInFile.write('  7/2  1  +1\n')    
+#  fInFile.write('  5/2  2  +1\n')    
+#  fInFile.write('  9/2  1  +1\n')
+#  
   #number of protons 
   fInFile.write('  8\n')
   #of nucleons
@@ -87,6 +137,97 @@ def CreateInFile(sInfilePath):
   #state specifications (J, nJ, P)
   fInFile.write('  0  1  +1\n')
   
+  #number of protons 
+  fInFile.write('  8\n')
+  #of nucleons
+  fInFile.write('23\n')
+  #Experimental ground state energy of the nucleus
+  fInFile.write('-37.15\n')
+  #min max delta j
+  fInFile.write(' 0.5, 4.5, 1.0,\n')
+  #parity
+  fInFile.write('  0\n')
+  #number of states used in optimization
+  fInFile.write('1\n')
+  #state specifications (J, nJ, P)
+  fInFile.write('  1/2  1  +1\n')
+
+  #number of protons 
+  fInFile.write('  8\n')
+  #of nucleons
+  fInFile.write('24\n')
+  #Experimental ground state energy of the nucleus
+  fInFile.write('-41.34\n')
+  #min max delta j
+  fInFile.write(' 0.0, 4.0, 1.0,\n')
+  #parity
+  fInFile.write('  0\n')
+  #number of states used in optimization
+  fInFile.write('1\n')
+  #state specifications (J, nJ, P)
+  fInFile.write('  0  1  +1\n')
+
+#  #number of protons 
+#  fInFile.write('  8\n')
+#  #of nucleons
+#  fInFile.write('25\n')
+#  #Experimental ground state energy of the nucleus
+#  fInFile.write('-40.46\n')
+#  #min max delta j
+#  fInFile.write(' 0.5, 4.5, 1.0,\n')
+#  #parity
+#  fInFile.write('  0\n')
+#  #number of states used in optimization
+#  fInFile.write('1\n')
+#  #state specifications (J, nJ, P)
+#  fInFile.write('  3/2  1  +1\n')
+
+  #number of protons 
+  fInFile.write('  8\n')
+  #of nucleons
+  fInFile.write('26\n')
+  #Experimental ground state energy of the nucleus
+  fInFile.write('-40.26\n')
+  #min max delta j
+  fInFile.write(' 0.0, 4.0, 1.0,\n')
+  #parity
+  fInFile.write('  0\n')
+  #number of states used in optimization
+  fInFile.write('1\n')
+  #state specifications (J, nJ, P)
+  fInFile.write('  0  1  +1\n')
+
+#  #number of protons 
+#  fInFile.write('  8\n')
+#  #of nucleons
+#  fInFile.write('27\n')
+#  #Experimental ground state energy of the nucleus
+#  fInFile.write('-39.09\n')
+#  #min max delta j
+#  fInFile.write(' 0.5, 2.5, 1.0,\n')
+#  #parity
+#  fInFile.write('  0\n')
+#  #number of states used in optimization
+#  fInFile.write('1\n')
+#  #state specifications (J, nJ, P)
+#  fInFile.write('  3/2  1  +1\n')
+  
+#  #number of protons 
+#  fInFile.write('  8\n')
+#  #of nucleons
+#  fInFile.write('28\n')
+#  #Experimental ground state energy of the nucleus
+#  fInFile.write('-38.27\n')
+#  #min max delta j
+#  fInFile.write(' 0.0, 4.0, 1.0,\n')
+#  #parity
+#  fInFile.write('  0\n')
+#  #number of states used in optimization
+#  fInFile.write('1\n')
+#  #state specifications (J, nJ, P)
+#  fInFile.write('  0  1  +1\n')
+
+
 #code to create an input file
 CreateInFile('C:/PythonScripts/NushellScripts/OptInput.in')
 
@@ -108,13 +249,22 @@ class ShellOpt:
    def testMERW(self):
      self.mloNuclei[0].takeME([1,2,3])
    
-   def IterativeLSq(self, fTol=10**-5, nMaxIter=100): 
+   def IterativeLSq(self, sMethod='single', fTolin=10**-3, nMaxIter=100): 
      fResLast=0
      fResNew=100
      nIter=0
+     fTol=fTolin/float(len(self.mloNuclei[0].mllspec))
+     if sMethod=='mono':
+       npaMonoLabel=self.mloNuclei[0].getMonoLabel()
+       for nucleus in self.mloNuclei:
+         nucleus.llMESpec=[[],npaMonoLabel]
      while abs(fResLast-fResNew)>fTol and nIter<nMaxIter:
        fResLast=fResNew
-       npaGuess=self.singleParticleLeastSq()
+       if sMethod=='single':
+         npaGuess=self.singleParticleLeastSq()
+       elif sMethod=='mono':
+         npaGuess=self.monopoleLeastSq()
+
        fResNew=self.obj(npaGuess)
        nIter+=1
        print fResNew
@@ -151,6 +301,8 @@ class ShellOpt:
            anBody.append(2)
            if len(sTempL[1:])!=0:
              llMESpec[1].append(sTempL[1:])
+         elif sTempL[0]=='MONO':
+           anBody.append(3)
          else:
            print "Error: invalid specification of matrix element class"
        else: 
@@ -159,6 +311,8 @@ class ShellOpt:
      self.lsShared=[]
      for nIdx in range(3):
        self.lsShared.append(fIn.readline().strip('\n'))
+     self.sForm=fIn.readline().strip('\n')
+     print self.sForm
      self.mnNuclei=int(fIn.readline().strip('\n'))
      self.mloNuclei=[]
      for nIdx in range(self.mnNuclei):
@@ -207,8 +361,9 @@ class ShellOpt:
        
        fOut=open(self.sOutPath+'\\'+'tracking'+'\\ME.dat','a+')
        string=''
+       sFormME='{:10.4f}\t'
        for elem in npaME:
-         string=string+str(elem)+'\t'
+         string=string+sFormME.format(elem)
        fOut.write(string+'\n')
        fOut.close()
        
@@ -245,11 +400,51 @@ class ShellOpt:
      
      return ans#, a, target, obme
 
+#returns the single particle energy + monopole lest square solution to the energy
+   def monopoleLeastSq(self):
+     import numpy
+     a=[]
+     npaEExp=[]
+     npaETh=[]
+     for nucleus in self.mloNuclei:
+       temp=nucleus.calcMonoOcc()
+#       print temp.shape
+       if a!=[]:
+         a=numpy.append(a,temp,axis=0)
+       else:
+         a=numpy.array(temp)
+         
+       temp=numpy.array(nucleus.getEExp(),dtype=float)
+       tempth=nucleus.getEnNu()
+       if npaEExp!=[]:
+         npaEExp=numpy.append(npaEExp,temp,axis=0)
+         npaETh=numpy.append(npaETh,tempth,axis=0)
+       else: 
+         npaEExp=temp
+         npaETh=tempth
+     
+     npaME=self.mloNuclei[0].getOBME()
+     npaME=numpy.append(npaME,self.mloNuclei[0].getMonoME())
+     
+#     print npaETh
+#     print numpy.dot(a,npaME)
+#     print a.shape
+#     print npaME.shape
+     
+     Hexpect=npaETh-numpy.dot(a, npaME)
+     target=npaEExp-Hexpect
+     ans=numpy.linalg.lstsq(a, target)
+     ans=ans[0]
+     
+     return ans#, a, target, npaME
+
 import sys
 
 sys.path.append('c:\\PythonScripts\\NushellScripts\\')
+sys.path.append('C:\PythonScripts\generalmath')
+
 x=ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in','c:\\PythonScripts\\NushellScripts\\test')
 
-#ans,a, target, obme=x.singleParticleLeastSq()
-print x.IterativeLSq()
+#ans, a, target, npaME=x.monopoleLeastSq()
+print x.IterativeLSq(sMethod='mono')
 #x.performOptimization()

@@ -57,10 +57,7 @@ class MEhandler:
         sNext="{0:>10.4f}"
         templine=line.strip().split()        
         if len(self.llMESpec[0])==0 and nLine==0:
-#          print templine
-#          print npaME[0]
           sNew=sStart.format(templine[0],float(npaME[0]))
-#          print npaME
           for nElemIdx, elem in enumerate(npaME):
             if nElemIdx!=0:
               sNew=sNew+sNext.format(float(elem))
@@ -173,6 +170,52 @@ class MEhandler:
         nUnCm+=1
     fIntSrc.close()
     return np.array(npaME,dtype=float)
+
+#set monopole matrix elements
+  def writeMonoME(self, npaME):
+    import shutil
+    shutil.copyfile(self.makeIntPath(''),self.makeIntPath('_'))
+    fIntSrc=open(self.makeIntPath('_'),'r') 
+    fIntOut=open(self.makeIntPath(''),'w')
+    sStart="{0:>3}"
+    sNext="{0:>5}{1:>3}{2:>9.4f}"
+    sNew=""          
+    nElem=0
+    nUnCm=0
+    for line in fIntSrc:
+      if line[0]!='!':             
+        if  nUnCm!=0:
+          temp=line.strip().split()
+          if temp[0]==temp[2] and temp[1]==temp[3] and int(temp[4])!=0:          
+            for i in range(4):
+              sNew=sNew+sStart.format(temp[i])
+            sNew=sNew+sNext.format(temp[4],temp[5], float(npaME[nElem]))
+            fIntOut.write(sNew+"\n")          
+            nElem=nElem+1
+          else:
+            fIntOut.write(line)
+        else:
+            fIntOut.write(line)
+      else:
+            fIntOut.write(line)
+      nUnCm+=1
+      fIntSrc.close()
+      fIntOut.close()
+#get the monopole interaction matrix elements
+  def getMonoME(self):
+    fIntSrc=open(self.makeIntPath(''),'r') 
+    nUnCm=0
+    npaMME=[]
+    for line in fIntSrc:
+      if line[0]!='!':
+        temp=line.strip().split()        
+        if nUnCm!=0 and temp[0]==temp[2] and temp[1]==temp[3] and int(temp[4])!=0:          
+          npaMME.append(temp[6])
+        nUnCm+=1
+    fIntSrc.close()
+    import numpy
+    return numpy.array(npaMME,dtype=float)
+     
 #get label
   def getLabel(self): 
     fIntSrc=open(self.makeIntPath(''),'r') 
@@ -181,10 +224,8 @@ class MEhandler:
     nElem=0
     nUnCm=0
     for line in fIntSrc:
-#      print line
-#      print nUnCm
       if line[0]!='!':
-        if nUnCm>1: 
+        if nUnCm>0: 
           line=line.strip().split()
           temp=[]
           for elem in line[0:6]:
@@ -195,6 +236,7 @@ class MEhandler:
             npaLabel=[temp]
           nElem=nElem+1
         nUnCm+=1
+    
     fIntSrc.close()
     return npaLabel
       
@@ -204,6 +246,7 @@ class MEhandler:
     for line in fIntSrc:
       if line[0]!='!':
         return len(line.strip().split())-4
+
   #rerturn the total number of TBME in the interaction file
   def countTBME(self):
     fIntSrc=open(self.makeIntPath(''))
