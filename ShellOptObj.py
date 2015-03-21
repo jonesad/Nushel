@@ -10,12 +10,10 @@ attempt at object orientation of nushell optimization
 def CreateInFile(sInfilePath):
   fInFile=open(sInfilePath,'w')
   # lines in me spec
-  fInFile.write('2\n')
+  fInFile.write('1\n')
   # matrix element specification
   #Single particle
   fInFile.write('OBME\n')
-#  monopole (diagonal 2 body)
-  fInFile.write('MONO\n')  
   #model space specification
   fInFile.write('sdpn\n')
   #restriction
@@ -249,31 +247,67 @@ class ShellOpt:
    def testMERW(self):
      self.mloNuclei[0].takeME([1,2,3])
    
-   def IterativeLSq(self, sMethod='single', fTolin=10**-3, nMaxIter=100): 
+   def IterativeLSq(self, sMethod='single', fTolin=2.5*10**-3, nMaxIter=100): 
      fResLast=0
      fResNew=100
+     lRes=[100,1000, 10000, 100000]
      nIter=0
      fTol=fTolin/float(len(self.mloNuclei[0].mllspec))
+     lME=[[],[],[],[]]
      if sMethod=='mono':
        npaMonoLabel=self.mloNuclei[0].getMonoLabel()
+       
        for nucleus in self.mloNuclei:
          nucleus.llMESpec=[[],npaMonoLabel]
-     while abs(fResLast-fResNew)>fTol and nIter<nMaxIter:
-       fResLast=fResNew
+         nucleus.setmanBody([1, 2])
+     while abs(lRes[0]-lRes[1])>fTol and nIter<nMaxIter:
+#       fResLast=fResNew
+       for nIdx in range(3):
+        lRes[len(lRes)-(nIdx+1)]=lRes[len(lRes)-(nIdx+2)]
+        lME[len(lRes)-(nIdx+1)]=lME[len(lRes)-(nIdx+2)]
        if sMethod=='single':
          npaGuess=self.singleParticleLeastSq()
        elif sMethod=='mono':
          npaGuess=self.monopoleLeastSq()
-
+       import numpy
+       import math
+       num=numpy.random.rand()*.5 + 0.5
+       if lME[1]!=[] and numpy.all(lME[1].shape==npaGuess.shape):  
+         npaGuess=num*npaGuess +(1.-num)*lME[1]
+         
        fResNew=self.obj(npaGuess)
+       lRes[0]=fResNew
+       lME[0]=npaGuess
        nIter+=1
+       print lRes
+       print lME
        print fResNew
-     if abs(fResLast-fResNew)<fTol:
+       #chek for oscilating convergence and average the ME of oscilations if found 
+#       if abs(lRes[0]-lRes[2])<10*fTol and abs(lRes[0]-lRes[1])>10*fTol:
+#         npaGuess=(lME[0]+lME[1])*0.5
+#         fResNew=self.obj(npaGuess)
+#         lRes[0]=fResNew
+#         lME[0]=npaGuess
+#       
+#       elif abs(lRes[0]-lRes[3])<10*fTol:
+#         if abs(lRes[0]-lRes[1])>10*fTol:
+#           npaGuess=(lME[0]+lME[1])*0.5
+#           fResNew=self.obj(npaGuess)
+#           lRes[0]=fResNew
+#           lME[0]=npaGuess
+#       
+#         elif abs(lRes[0]-lRes[2])>10*fTol:
+#           npaGuess=(lME[0]+lME[2])*0.5
+#           fResNew=self.obj(npaGuess)
+#           lRes[0]=fResNew
+#           lME[0]=npaGuess      
+                 
+     if abs(lRes[0]-lRes[1])<fTol:
        print 'Completed Successfully'
      else:
        print 'Iteration max reached: ', nIter       
      return fResNew
-       
+   
    def performOptimization(self, sMethod='Nelder-Mead', dOptions=None):
       npaGuess=self.mloNuclei[0].getME()
       from scipy.optimize import minimize
@@ -308,6 +342,7 @@ class ShellOpt:
        else: 
          sTempL=fIn.readline().strip('\n')
          llMESpec.append(sTempL)
+         print sTempL
      self.lsShared=[]
      for nIdx in range(3):
        self.lsShared.append(fIn.readline().strip('\n'))
@@ -399,7 +434,8 @@ class ShellOpt:
      ans=ans[0]
      
      return ans#, a, target, obme
-
+         
+         
 #returns the single particle energy + monopole lest square solution to the energy
    def monopoleLeastSq(self):
      import numpy
@@ -413,7 +449,6 @@ class ShellOpt:
          a=numpy.append(a,temp,axis=0)
        else:
          a=numpy.array(temp)
-         
        temp=numpy.array(nucleus.getEExp(),dtype=float)
        tempth=nucleus.getEnNu()
        if npaEExp!=[]:
@@ -422,29 +457,98 @@ class ShellOpt:
        else: 
          npaEExp=temp
          npaETh=tempth
-     
-     npaME=self.mloNuclei[0].getOBME()
-     npaME=numpy.append(npaME,self.mloNuclei[0].getMonoME())
-     
+          
 #     print npaETh
 #     print numpy.dot(a,npaME)
 #     print a.shape
 #     print npaME.shape
+#     remove zero columns of the matrix and the associated matrix elements
+     import sys
+     sys.path.append('C:\PythonScripts\generalmath')
+     import MatManip
+     rmList=MatManip.getZeroCols(a)
+#     print a.shape
+     if rmList!=[]:
+       a=MatManip.rmSlice(rmList, a, 1)
+       temp1=[]
+       temp2=[]
+       for elem in rmList:
+         if elem<=5:
+           temp1.append(elem)
+         if elem >5:
+           temp2.append(elem-6)
+#       print a.shape
+#       print len(rmList)
+#       print len(temp1), len(temp2)
+
+       for nucleus in self.mloNuclei:
+         nucleus.llMESpec[1]=nucleus.getMonoLabel()
+         
+         nucleus.llMESpec[0]=[ii for ii in range(6)  if ii not in temp1]
+         nucleus.llMESpec[1]=MatManip.rmSlice(temp2, nucleus.llMESpec[1],0)
+     npaME=self.mloNuclei[0].getOBME()
+#     print self.mloNuclei[0].getMonoLabel().shape
+#     print self.mloNuclei[0].llMESpec[1].shape
+#     print len(self.mloNuclei[0].llMESpec[0])
+#     print self.mloNuclei[0].getTBME()
+     npaME=numpy.append(npaME,self.mloNuclei[0].getTBME())
      
-     Hexpect=npaETh-numpy.dot(a, npaME)
-     target=npaEExp-Hexpect
+     target=npaEExp-(npaETh-numpy.dot(a,npaME))
      ans=numpy.linalg.lstsq(a, target)
      ans=ans[0]
-     
      return ans#, a, target, npaME
-
+ 
+# plot the residual and the matrix elements as a funtion of iteration number
+   def plotResults(self):
+     fResIn=open(self.sOutPath+'\\'+'tracking'+'\\res.dat','r')       
+     npaRes=[]
+     for line in fResIn:
+       npaRes.append(line.strip())
+     fResIn.close()
+     import numpy as np
+     npaRes=np.array(npaRes)
+     import matplotlib.pyplot as plt
+     plt.figure()
+     plt.plot(npaRes, label='Res')
+     plt.title('RMS Energy Error by Iteration Number')
+     plt.xlabel('Number of Iterations')
+     plt.ylabel('RMS Energy Error (MeV)')
+     plt.show()
+     
+#  in case the files are overwritten run the the mopole least square to rewrite the me labels
+     self.monopoleLeastSq()
+         
+     fMEIn=open(self.sOutPath+'\\'+'tracking'+'\\ME.dat','r') 
+     npaME=[]
+     for line in fMEIn:
+       npaME.append(line.strip().split())
+     npaME=np.array(npaME)
+     # construct labels
+     lsLabels=[]
+     for elem in self.mloNuclei[0].llMESpec[0]:
+       lsLabels.append('SPE: '+str(elem+1))
+     for npaMEIdx in self.mloNuclei[0].llMESpec[1]:
+       tempstr='[ '
+       for nIdx in npaMEIdx:
+         tempstr+=str(nIdx)+' '
+       lsLabels.append('TBME: '+tempstr+']')
+#     plot the ME
+     plt.figure()
+     for nColIdx in range(npaME.shape[1]):
+       plt.plot(npaME[:,nColIdx],label=lsLabels[nColIdx])
+     plt.title('ME by Iteration Number')
+     plt.xlabel('Number of Iterations')
+     plt.ylabel('ME (MeV)')
+#     plt.legend(loc='best')
+     plt.show()
+          
 import sys
-
 sys.path.append('c:\\PythonScripts\\NushellScripts\\')
 sys.path.append('C:\PythonScripts\generalmath')
 
 x=ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in','c:\\PythonScripts\\NushellScripts\\test')
 
 #ans, a, target, npaME=x.monopoleLeastSq()
-print x.IterativeLSq(sMethod='mono')
+#print x.IterativeLSq(sMethod='mono')
 #x.performOptimization()
+x.plotResults()

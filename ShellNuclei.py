@@ -135,14 +135,12 @@ class nucleus(ShellOptFl.MEhandler):
 #        print len(lev[1])
 #        print lev
 #        print '\n\n'
-
         for string in line:
 #          print '\n\n'
 #          print len(string)
 #          print len(lev[0])+1
 #          print '\n\n'
 #          print npaJ
-
           if len(string)==len(lev[0])+1 and  string[:-1]==lev[0] and string[-1]==lev[2][0]:  
             npaJ[nlevIdx]+=1
 #            print int(npaJ[nlevIdx]), int(lev[1])
@@ -162,8 +160,8 @@ class nucleus(ShellOptFl.MEhandler):
       print "Error: # of Experimental levels found does not match requested # in nAZ=", self.nAZ
       print "Requested:", len(self.mllspec)
       print "Found:", len(afEExp)
-
     return afEExp
+    
       
 #run the shell model calculation        
   def runSM(self):
@@ -181,15 +179,15 @@ class nucleus(ShellOptFl.MEhandler):
     nMono=0
     for nIdx in range(npaLabel.shape[0]):
       nIsit=0
-      if npaLabel[nIdx,1]==npaLabel[nIdx,3] and npaLabel[nIdx,0]==npaLabel[nIdx,2] :
+      if npaLabel[nIdx,1]==npaLabel[nIdx,3] and npaLabel[nIdx,0]==npaLabel[nIdx,2]and npaLabel[nIdx,4]!=0 :
         nMono+=1
         for nJj in range(npaMonoLabel.shape[0]):
           if npaMonoLabel!=np.array([]):
-            if npaMonoLabel.size==4 and np.all(npaMonoLabel==npaLabel[nIdx,:4]):
+            if npaMonoLabel.size==6 and np.all(npaMonoLabel==npaLabel[nIdx,:6]):
               nIsit=1
               break
-            elif npaMonoLabel.size>4: 
-              if np.all(npaLabel[nIdx,:4]==npaMonoLabel[nJj,:]):
+            elif npaMonoLabel.size>6: 
+              if np.all(npaLabel[nIdx,:6]==npaMonoLabel[nJj,:]):
                 nIsit=1
                 break
       else:
@@ -197,9 +195,9 @@ class nucleus(ShellOptFl.MEhandler):
 
       if nIsit==0:
         if npaMonoLabel!=np.array([]):
-          npaMonoLabel=np.append(npaMonoLabel,np.array([npaLabel[nIdx,:4]]),0)
+          npaMonoLabel=np.append(npaMonoLabel,np.array([npaLabel[nIdx,:6]]),0)
         else:
-          npaMonoLabel=np.array([npaLabel[nIdx,:4]])
+          npaMonoLabel=np.array([npaLabel[nIdx,:6]])
     return npaMonoLabel
 
 

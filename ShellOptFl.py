@@ -52,11 +52,12 @@ class MEhandler:
     nLine=0
     for line in fIntSrc:
       if line[0]!='!':
-        sNew=[]
+        sNew=''
         sStart="{0:3}{1:>11.4f}"
         sNext="{0:>10.4f}"
         templine=line.strip().split()        
         if len(self.llMESpec[0])==0 and nLine==0:
+          print 'writing all ME'
           sNew=sStart.format(templine[0],float(npaME[0]))
           for nElemIdx, elem in enumerate(npaME):
             if nElemIdx!=0:
@@ -65,22 +66,16 @@ class MEhandler:
               sNew=sNew+sNext.format(float(templine[len(npaME)+i+1]))
           fIntOut.write(sNew+"\n")
         elif len(self.llMESpec[0])!=0 and nLine==0:
-          nLElIdx=0
+          print "Writing only listed ME"
           for nElemIdx, elem in enumerate(self.llMESpec[0]):
-            if nElemIdx==0 and elem==1:
-              sNew=sStart.format(line[0],float(npaME[0]))
-              nLElIdx+=1
-            elif nElemIdx==0 and elem!=1:
-              sNew=sStart.format(line[0],line[1])
-              nLElIdx+=2
-            elif nElemIdx!=0 and elem==nElemIdx:
-              sNew=sNew+sNext.format(float(npaME[nElemIdx]))
-              nLElIdx+=1
-            elif nElemIdx!=0 and elem!=nElemIdx:
-              sNew=sNew+sNext.format(elem)
-            else:
-              print "logic error"
-              break
+            templine[elem]=npaME[nElemIdx]
+          for nIdx, elem in enumerate(templine):
+            if nIdx==0:
+              sNew+=sStart.format(templine[0], float(templine[1]))
+            elif nIdx>1:
+              sNew+=sNext.format(float(elem))
+          print sNew
+          fIntOut.write(sNew+'\n')
         else:
           fIntOut.write(line)
         nLine+=1
@@ -100,15 +95,12 @@ class MEhandler:
     npaME=[]    
     for line in fIntSrc:
       if line[0]!='!':
+        line=line.strip().split()
         if len(self.llMESpec[0])==0:
-          line=line.strip().split()
           npaME.append(line[1:1+nOBME])          
         elif len(self.llMESpec[0])!=0:
-#          print self.llMESpec
           for elem in self.llMESpec[0]:
-#            print 'I am elem'            
-#            print elem
-            npaME.append(line[int(elem)])
+            npaME.append(line[int(elem)+1])
         break            
     fIntSrc.close()
     return np.array(npaME,dtype=float)
@@ -118,34 +110,44 @@ class MEhandler:
     shutil.copyfile(self.makeIntPath(''),self.makeIntPath('_'))
     fIntSrc=open(self.makeIntPath('_'),'r') 
     fIntOut=open(self.makeIntPath(''),'w')
-    sStart="{0:>3}"
-    sNext="{0:>5}{1:>3}{2:>9.4f}"
-    sNew=""          
+    sStart="{0:>4}"
+    sNext="{0:>3}"
+    sEnd="{0:>4}{1:>3}{2:>14.5f}"
     nElem=0
     nUnCm=0
     for line in fIntSrc:
-      if line[0]!='!':             
-        if  len(self.llMESpec[1])==0 and nUnCm!=0:
-          line=line.strip().split()
-          for i in range(4):
-            sNew=sNew+sStart.format(line[i])
-          sNew=sNew+sNext.format(line[4],line[5], float(npaME[nElem]))
+      sNew=""          
+      if line[0]!='!' and nElem<npaME.shape[0]:             
+        temp1=line.strip().split()
+        if nUnCm>0:
+          if len(self.llMESpec[1])!=0:
+            temp2=[]
+            for nIdx in range(len(self.llMESpec[1][0,:])):
+              if nIdx!=0:
+                temp2.append(int(temp1[nIdx]))
+              else:
+                temp2=[int(temp1[nIdx])]
+        if len(self.llMESpec[1])==0 and nUnCm!=0:
+          sNew=sNew+sStart.format(temp1[0])
+          for i in range(3):
+            sNew=sNew+sNext.format(temp1[i])
+          sNew=sNew+sEnd.format(temp1[4],temp1[5], float(npaME[nElem]))
           fIntOut.write(sNew+"\n")          
           nElem=nElem+1
-        elif len(self.llMESpec[1])!=0 and nUnCm!=0 and self.llMESpec[1][nElem]==nUnCm:
-          line=line.strip().split()
-          for i in range(4):
-            sNew=sNew+sStart.format(line[i])
-          sNew=sNew+sNext.format(line[4],line[5], float(npaME[nElem]))
+        elif len(self.llMESpec[1])!=0 and nUnCm!=0 and all(x in self.llMESpec[1][nElem] for x in temp2):
+          sNew=sNew+sStart.format(temp1[0])          
+          for i in range(3):
+            sNew=sNew+sNext.format(temp1[i])
+          sNew=sNew+sEnd.format(temp1[4],temp1[5], float(npaME[nElem]))
           fIntOut.write(sNew+"\n")          
           nElem=nElem+1
         else:
-            fIntOut.write(line)
+          fIntOut.write(line)
+        nUnCm+=1
       else:
-            fIntOut.write(line)
-      nUnCm+=1
-      fIntSrc.close()
-      fIntOut.close()
+        fIntOut.write(line)
+    fIntSrc.close()
+    fIntOut.close()
 #Get TBME
   def getTBME(self, nExtrap=0):
     fIntSrc=open(self.makeIntPath('',nExtrap),'r') 
@@ -154,20 +156,28 @@ class MEhandler:
     nElem=0
     nUnCm=0
     for line in fIntSrc:
-      if line[0]!='!':
+      if line[0][0]!='!':
+        line=line.strip().split()
+        if nUnCm>0:
+          temp=[]
+          for nIdx in range(5):
+            if nIdx!=0:
+              temp.append(int(line[nIdx]))
+            else:
+              temp=[int(line[nIdx])]
         if  len(self.llMESpec[1])==0 and nUnCm!=0:
-          line=line.strip().split()
-#          print npaME
           if npaME!=[]:
             npaME.append(float(line[6]))
           else:            
             npaME=[line[6]]
           nElem=nElem+1
-        elif len(self.llMESpec[1])!=0 and nUnCm!=0 and self.llMESpec[1][nElem]==nUnCm:
-          line=line.strip().split()
+        elif len(self.llMESpec[1])!=0 and nUnCm!=0 and all(x in self.llMESpec[1][nElem] for x in temp):
           npaME.append(float(line[6]))         
           nElem=nElem+1
         nUnCm+=1
+        if nElem >= len(self.llMESpec[1]) and len(self.llMESpec[1])!=0:
+          break
+        
     fIntSrc.close()
     return np.array(npaME,dtype=float)
 
@@ -279,7 +289,17 @@ class MEhandler:
       if elem==1:
         npaME=self.getOBME()
       elif elem==2:
-        npaME=self.gettBME()      
+        npaME=self.getTBME()      
     return npaME
     
-      
+#Check the interaction for repititions of ME
+  def checkRep(self):
+    fIntSrc=open(self.makeIntPath(''), 'r')
+    myLines=[]    
+    for line in fIntSrc:
+      myLines.append(line[:21])
+    if len(myLines)==len(set(myLines)):
+      print "Each line in the file is unique"
+    else:
+      print "Repititions exist"
+      print "Of", len(myLines), 'lines', len(set(myLines)), ' are unique.'
