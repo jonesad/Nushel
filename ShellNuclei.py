@@ -13,7 +13,7 @@ import ShellOptFl
 class nucleus(ShellOptFl.MEhandler):
   'class for managing a single nucleus'
 #take the path and create a sub directory for the nucleus and run a default calculation for the nucleus.
-  def __init__(self,  nZ, nA, fGSE,sPath, sMMDR, sPar, lsShared,llMESpec,useGS):
+  def __init__(self,  nZ, nA, fGSE,sPath, sMMDR, sPar, lsShared,llMESpec,useGS,initialize=True, bExtrap=True):
     import os
     self.sPath=sPath
     self.nAZ=[nA,nZ]    
@@ -24,14 +24,17 @@ class nucleus(ShellOptFl.MEhandler):
       os.makedirs(self.sPath+'\\'+self.sName+'\\'+'tracking')  
     self.writeAns(sMMDR, sPar,lsShared)
     self.sInt=lsShared[2]
-#    import time
-#    if llMESpec==[[],[]]:
-#      print 'Warning no matrix elements specified...'
-#      time.sleep(2)
+    if len(llMESpec[0])==0:
+      llMESpec[0]=list(range(1,7))
     self.llMESpec=llMESpec
-    self.runSM()
+    if initialize:
+      self.runSM()
     self.fGSE=fGSE
     self.useGS=useGS
+    self.bExtrap=bExtrap
+    #initialize the single particle matrix elements
+    self.llMESpec[0]=range(1,self.countOBME()+1)    
+    
     
 #make a '.ans' file for use with Nushellx   
   def writeAns(self, sMMDR, sPar,lsShared):
@@ -171,34 +174,6 @@ class nucleus(ShellOptFl.MEhandler):
     #print os.getcwd()    
     os.system('shell '+self.sName+'.ans')
     os.system(self.sName)
-#get the labels for the monopole matrix elements
-  def getMonoLabel(self):
-    import numpy as np
-    npaLabel=self.getLabel()
-    npaMonoLabel=np.array([])
-    nMono=0
-    for nIdx in range(npaLabel.shape[0]):
-      nIsit=0
-      if npaLabel[nIdx,1]==npaLabel[nIdx,3] and npaLabel[nIdx,0]==npaLabel[nIdx,2]and npaLabel[nIdx,4]!=0 :
-        nMono+=1
-        for nJj in range(npaMonoLabel.shape[0]):
-          if npaMonoLabel!=np.array([]):
-            if npaMonoLabel.size==6 and np.all(npaMonoLabel==npaLabel[nIdx,:6]):
-              nIsit=1
-              break
-            elif npaMonoLabel.size>6: 
-              if np.all(npaLabel[nIdx,:6]==npaMonoLabel[nJj,:]):
-                nIsit=1
-                break
-      else:
-        nIsit=1        
-
-      if nIsit==0:
-        if npaMonoLabel!=np.array([]):
-          npaMonoLabel=np.append(npaMonoLabel,np.array([npaLabel[nIdx,:6]]),0)
-        else:
-          npaMonoLabel=np.array([npaLabel[nIdx,:6]])
-    return npaMonoLabel
 
 
 #monopole term calculation works with p-n formalism matrix element labels
@@ -206,9 +181,13 @@ class nucleus(ShellOptFl.MEhandler):
     sLevName=self.getLevName()
     npaLabel=self.getLabel()
     npaOcc=self.getOcc(sLevName)
+    tempocc=[]
     import numpy as np
+
+      
     nMonoSize=self.getMonoME().size    
     npaMono=np.zeros([npaOcc.shape[0],nMonoSize])
+    npaMonoLabel=self.getMonoLabel()
 #    print npaOcc.shape[0], nMonoSize
 
     denom=np.zeros(npaMono.shape)
@@ -221,19 +200,113 @@ class nucleus(ShellOptFl.MEhandler):
 #        print npaLabel[nLevIdx,0]==npaLabel[nLevIdx,2]
 #        print npaLabel[nLevIdx,4]
 #        print npaLabel[nLevIdx,:]
-        if npaLabel[nIdx,1]==npaLabel[nIdx,3] and npaLabel[nIdx,0]==npaLabel[nIdx,2] and npaLabel[nIdx,4]!=0:
-          temp=float(npaLabel[nIdx,4]*(npaLabel[nIdx,4]+1))
+#        if npaLabel[nIdx,1]==npaLabel[nIdx,3] and npaLabel[nIdx,0]==npaLabel[nIdx,2] and npaLabel[nIdx,4]!=0:
+        if np.all(npaLabel[nIdx]==npaMonoLabel[nMono]):
+          temp=float(2*(npaLabel[nIdx,4]+1))
           if npaLabel[nIdx,0]!=npaLabel[nIdx,1]:
             npaMono[nLevIdx,nMono]+=npaOcc[nLevIdx,int(npaLabel[nIdx,0]-1)]*npaOcc[nLevIdx,int(npaLabel[nIdx,1]-1)]*temp
-          else:
+          else:            
             npaMono[nLevIdx,nMono]+=npaOcc[nLevIdx,int(npaLabel[nIdx,0]-1)]*(npaOcc[nLevIdx,int(npaLabel[nIdx,1]-1)]-1.0)*temp/2.0
           denom[nLevIdx,nMono]+=temp
+#          print 'j*(j+1)=', temp
           nMono+=1
+          if nMono>=npaMonoLabel.shape[0]:
+            break
     npaMono=np.divide(npaMono,denom)
 #    print npaMono.max()
 #    print npaMono
+    for nIdx in self.llMESpec[0]:
+      if len(tempocc) != 0:
+        temp=np.array(npaOcc[:,nIdx-1])
+        temp.shape=[temp.size,1]
+        tempocc=np.append(tempocc, temp, axis=1)
+      elif len(tempocc)==0:
+        tempocc=np.array(npaOcc[:,nIdx-1])
+        tempocc.shape=[tempocc.size,1]
+      else:
+        print 'logic err'
+    if tempocc!=[]:
+      npaOcc=tempocc
+      
     temp=np.append(npaOcc,npaMono,axis=1)
     return temp    
+
+    #monopole term calculation works with p-n formalism matrix element labels
+  def summedMO(self):
+    sLevName=self.getLevName()
+    npaLabel=self.getLabel()
+    npaOcc=self.getOcc(sLevName)
+    tempocc=[]
+    import numpy as np
+
+      
+    nMonoSize=self.getMonoME().size    
+    npaMono=np.zeros([npaOcc.shape[0],nMonoSize])
+    npaMonoLabel=self.getMonoLabel()
+    
+#    print npaOcc.shape[0], nMonoSize
+    denom=np.zeros(npaMono.shape)
+    for nLevIdx in range(npaMono.shape[0]):    
+      nMono=0
+      for nIdx in range(npaLabel.shape[0]):        
+        if np.all(npaLabel[nIdx]==npaMonoLabel[nMono]):
+          temp=float(2*(npaLabel[nIdx,4]+1))
+          if npaLabel[nIdx,0]!=npaLabel[nIdx,1]:
+            npaMono[nLevIdx,nMono]+=npaOcc[nLevIdx,int(npaLabel[nIdx,0]-1)]*npaOcc[nLevIdx,int(npaLabel[nIdx,1]-1)]*temp
+          else:            
+            npaMono[nLevIdx,nMono]+=npaOcc[nLevIdx,int(npaLabel[nIdx,0]-1)]*(npaOcc[nLevIdx,int(npaLabel[nIdx,1]-1)]-1.0)*temp/2.0
+          denom[nLevIdx,nMono]+=temp
+          nMono+=1
+          if nMono>=npaMonoLabel.shape[0]:
+            break
+#    print denom
+#    print npaMono
+    npaMono=np.divide(npaMono,denom)
+#    print npaMono
+
+#    print npaMono.max()
+#    print npaMono
+    for nIdx in self.llMESpec[0]:
+      if len(tempocc) != 0:
+        temp=np.array(npaOcc[:,nIdx-1])
+        temp.shape=[temp.size,1]
+        tempocc=np.append(tempocc, temp, axis=1)
+      elif len(tempocc)==0:
+        tempocc=np.array(npaOcc[:,nIdx-1])
+        tempocc.shape=[tempocc.size,1]
+      else:
+        print 'logic err'
+    if tempocc!=[]:
+      npaOcc=tempocc
+    
+    npaNewLabels=[]     
+    for nIdx in range(npaMonoLabel.shape[0]):
+      bIsIt=False
+      try:
+        temp=npaNewLabels.shape[0]
+      except:
+        temp=len(npaNewLabels)  
+      for nIdx2 in range(temp):
+        if np.all(np.array([npaMonoLabel[nIdx,:4]])==npaNewLabels[nIdx2]):
+          bIsIt=True
+      if (not bIsIt):
+        if npaNewLabels!=[]:
+          npaNewLabels=np.append(npaNewLabels, [npaMonoLabel[nIdx,:4]], axis=0)          
+        elif npaNewLabels==[]:
+          npaNewLabels=np.array([npaMonoLabel[nIdx,:4]])
+
+    npaNewMO=np.zeros([npaMono.shape[0], npaNewLabels.shape[0]])
+    for nIdx1 in range(npaNewMO.shape[0]):
+      for nIdx2 in range(npaNewLabels.shape[0]):
+        for nIdx3 in range(npaMonoLabel.shape[0]):  
+#          print np.all(npaNewLabels[nIdx2]==npaMonoLabel[nIdx3,:4])
+          if np.all(npaNewLabels[nIdx2]==npaMonoLabel[nIdx3,:4]):
+            npaNewMO[nIdx1,nIdx2]+=npaMono[nIdx1][nIdx3]
+    temp=np.append(npaOcc,npaNewMO,axis=1)
+#    print npaMono
+#    print npaNewMO
+    return temp, npaNewLabels
+
   
 #get the occupation numbers   
   def getOcc(self, sLevName):
@@ -258,4 +331,33 @@ class nucleus(ShellOptFl.MEhandler):
 
       fIn.close()
       return np.array(npaOcc,dtype=float)
-      
+#get errors on the levels used in the fit
+  def getLevError(self, sErrorPath):
+    levs=self.mllspec
+    fErrors=open(sErrorPath, 'r')
+    import numpy as np
+    npaError=np.array([])
+    for lev in levs:
+      spec=[]
+      spec=list(self.nAZ)
+      spec.extend(lev.strip().split())
+      for line in fErrors:
+        line=line.strip().split()
+        temp=[]
+        temp.append(int(line[1]))
+        temp.append(int(line[0]))
+        temp.extend(line[2:-1])
+#        print spec, temp
+        if np.array_equal(spec,temp):
+          npaError=np.append(npaError,float(line[-1]))  
+          break
+    if len(self.mllspec)!=npaError.size:
+      print "Warning: expected ",len(self.mllspec),' errors and instead found ',npaError.size, '.'
+    return npaError
+# calculate the error in energies by varying The ME within a given range
+#  def calcEThErr(self, npaMESpec, npaME, npaError, nDat=30):
+#    nDim=npaMESpec.shape[0]
+#    nDist    
+#    for nDummy in range(nDat):
+          
+    

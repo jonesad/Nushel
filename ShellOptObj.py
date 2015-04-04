@@ -12,16 +12,20 @@ def CreateInFile(sInfilePath):
   # lines in me spec
   fInFile.write('1\n')
   # matrix element specification
-  #Single particle
+  #monopole
   fInFile.write('OBME\n')
+#  #Single particle
+#  fInFile.write('OBME\n')
   #model space specification
   fInFile.write('sdpn\n')
   #restriction
   fInFile.write('n\n')
   #interaction
-  fInFile.write('usdbpn\n')
+  fInFile.write('usdcpn\n')
   #formalism iso/pn
   fInFile.write('pn\n')
+  #does the interaction extrapolate matrix elements
+  fInFile.write('False\n')
   
   #number of nuclei used in optimization
   fInFile.write('8\n')
@@ -31,7 +35,7 @@ def CreateInFile(sInfilePath):
   #of nucleons
   fInFile.write('17\n')
   #Experimental ground state energy of the nucleus
-  fInFile.write('-4.14\n')
+  fInFile.write('-4.14308\n')
   #min max delta j
   fInFile.write(' 0.5, 2.5, 1.0,\n')
   #parity
@@ -47,7 +51,7 @@ def CreateInFile(sInfilePath):
   #of nucleons
   fInFile.write('18\n')
   #Experimental ground state energy of the nucleus
-  fInFile.write('-12.19\n')
+  fInFile.write('-12.18845\n')
   #min max delta j
   fInFile.write(' 0.0, 4.0, 1.0,\n')
   #parity
@@ -65,7 +69,7 @@ def CreateInFile(sInfilePath):
   #of nucleons
   fInFile.write('19\n')
   #Experimental ground state energy of the nucleus
-  fInFile.write('-16.14\n')
+  fInFile.write('-16.14409\n')
   #min max delta j
   fInFile.write(' 0.5, 4.5, 1.0,\n')
   #parity
@@ -86,7 +90,7 @@ def CreateInFile(sInfilePath):
   #of nucleons
   fInFile.write('20\n')
   #Experimental ground state energy of the nucleus
-  fInFile.write('-23.75\n')
+  fInFile.write('-23.752104\n')
   #min max delta j
   fInFile.write(' 0.0, 4.0, 1.0,\n')
   #parity
@@ -125,7 +129,7 @@ def CreateInFile(sInfilePath):
   #of nucleons
   fInFile.write('22\n')
   #Experimental ground state energy of the nucleus
-  fInFile.write('-34.41\n')
+  fInFile.write('-34.40758\n')
   #min max delta j
   fInFile.write(' 0.0, 4.0, 1.0,\n')
   #parity
@@ -140,7 +144,7 @@ def CreateInFile(sInfilePath):
   #of nucleons
   fInFile.write('23\n')
   #Experimental ground state energy of the nucleus
-  fInFile.write('-37.15\n')
+  fInFile.write('-37.141572\n')
   #min max delta j
   fInFile.write(' 0.5, 4.5, 1.0,\n')
   #parity
@@ -155,7 +159,7 @@ def CreateInFile(sInfilePath):
   #of nucleons
   fInFile.write('24\n')
   #Experimental ground state energy of the nucleus
-  fInFile.write('-41.34\n')
+  fInFile.write('-41.333144\n')
   #min max delta j
   fInFile.write(' 0.0, 4.0, 1.0,\n')
   #parity
@@ -185,7 +189,7 @@ def CreateInFile(sInfilePath):
   #of nucleons
   fInFile.write('26\n')
   #Experimental ground state energy of the nucleus
-  fInFile.write('-40.26\n')
+  fInFile.write('-41.243138\n')
   #min max delta j
   fInFile.write(' 0.0, 4.0, 1.0,\n')
   #parity
@@ -231,34 +235,78 @@ CreateInFile('C:/PythonScripts/NushellScripts/OptInput.in')
 
 class ShellOpt:
    'Class for shell model hamiltonian optimization problems'
-   def __init__(self, sInPath, sOutPath):
+   def __init__(self, sInPath, sOutPath, sErrorPath='', initialize=True,conservative=False):
 #flag that says to use the groundstate energy in optimization
       self.useGS=1
-#flag that tracks the residue and energy levels over the iterations 
+#flag that tracks the residue and energy levels over the iterations
+      self.sMethod=''
       self.track=1
       self.sInPath = sInPath
       self.sOutPath = sOutPath
       #get info from input file and initializes the nuclei objects
-      self.GetIn()
+      self.GetIn(initialize)
       import os
       if not os.path.exists(self.sOutPath+'\\'+'tracking'):
         os.makedirs(self.sOutPath+'\\'+'tracking')
-   
+      self.writeLevs(self.sOutPath+'\\'+'tracking\\')
+      self.conservative=conservative
+      if sErrorPath!='':
+        import numpy as np
+        self.npaErrors=np.array([])
+        for nucleus in self.mloNuclei:
+          self.npaErrors=np.append(self.npaErrors,nucleus.getLevError(sErrorPath))
+#        self.npaErrors.shape=[1,self.npaErrors.size]
+
+
+#Write the initial state of the fit          
+   def writeLevs(self, path):
+     npaEExp=[]
+     npaETh=[]
+     lLS=[]
+     lAZ=[]
+     for nucleus in self.mloNuclei:
+       import numpy
+       temp=numpy.array(nucleus.getEExp(),dtype=float)
+       tempth=nucleus.getEnNu()
+       lLS.extend(nucleus.mllspec)
+       lAZ.extend([nucleus.nAZ]*len(nucleus.mllspec))
+       if npaEExp!=[]:
+         npaEExp=numpy.append(npaEExp,temp,axis=0)
+         npaETh=numpy.append(npaETh,tempth,axis=0)
+       else: 
+         npaEExp=temp
+         npaETh=tempth
+     
+     fOut=open(path+'Levels.dat','w')
+     sFormat='{:10}{:5}{:5}{:5}{:10.4f}{:10.4f}'
+#     print lAZ, lLS, npaEExp.shape, npaETh.shape
+     for AZ,LS,Exp,Th in zip(lAZ, lLS,npaEExp,npaETh):
+       temp=LS.strip().split()
+       fOut.write(sFormat.format(AZ,temp[0],temp[1],temp[2],Exp,Th)+'\n')
+       
    def testMERW(self):
      self.mloNuclei[0].takeME([1,2,3])
+       
    
-   def IterativeLSq(self, sMethod='single', fTolin=2.5*10**-3, nMaxIter=100): 
-     fResLast=0
+   def IterativeLSq(self, sMethod='single', fTolin=10**-3, nMaxIter=100, bMix=True): 
+     self.sMethod=sMethod
+#     fResLast=0
+
+     # store the original matrix element specificaton so it can be restored 
+     #after it is altered.
+     llOriginalMESpec=list(self.mloNuclei[0].llMESpec)
+
+
      fResNew=100
      lRes=[100,1000, 10000, 100000]
      nIter=0
      fTol=fTolin/float(len(self.mloNuclei[0].mllspec))
      lME=[[],[],[],[]]
-     if sMethod=='mono':
+     
+     if sMethod=='mono' or sMethod=='smono':
        npaMonoLabel=self.mloNuclei[0].getMonoLabel()
-       
        for nucleus in self.mloNuclei:
-         nucleus.llMESpec=[[],npaMonoLabel]
+         nucleus.llMESpec=[list(range(1,7)),npaMonoLabel]
          nucleus.setmanBody([1, 2])
      while abs(lRes[0]-lRes[1])>fTol and nIter<nMaxIter:
 #       fResLast=fResNew
@@ -266,20 +314,46 @@ class ShellOpt:
         lRes[len(lRes)-(nIdx+1)]=lRes[len(lRes)-(nIdx+2)]
         lME[len(lRes)-(nIdx+1)]=lME[len(lRes)-(nIdx+2)]
        if sMethod=='single':
-         npaGuess=self.singleParticleLeastSq()
+         temp=self.singleParticleLeastSq()
+         npaGuess=temp[0]
        elif sMethod=='mono':
-         npaGuess=self.monopoleLeastSq()
+         temp=self.monopoleLeastSq()
+         npaGuess=temp[0]
+       elif sMethod=='smono':
+         temp=self.summedMLS()
+         npaGuess=temp[0]
+                 
        import numpy
-       import math
-       num=numpy.random.rand()*.5 + 0.5
-       if lME[1]!=[] and numpy.all(lME[1].shape==npaGuess.shape):  
-         npaGuess=num*npaGuess +(1.-num)*lME[1]
+
+# test to see if the linear optimization step is too big 
+       print "The guess is",npaGuess
+       comp1=numpy.linalg.norm(self.mloNuclei[0].getME())/float(self.mloNuclei[0].getME().size)
+       comp2=numpy.linalg.norm(npaGuess)/float(npaGuess.size)
+#       print comp1, comp2
+       if comp1<comp2 and self.conservative==True:
+         num=0.5*comp1/comp2
+#         print num
+#         print npaGuess
+         npaGuess=num*npaGuess + (1-num)*self.mloNuclei[0].getME()
+#         print npaGuess
+       if bMix:
+         if lME[1]!=[]and lME[2]!=[] and numpy.all(lME[1].shape==npaGuess.shape) and numpy.all(lME[2].shape==npaGuess.shape):
+           num=numpy.random.rand()*0.25 + 0.25
+           npaGuess=0.5*npaGuess +num*lME[1]+(0.5-num)*lME[2]          
+         elif lME[1]!=[] and numpy.all(lME[1].shape==npaGuess.shape):
+           num=numpy.random.rand()*.5 + 0.5
+           npaGuess=num*npaGuess +(1.-num)*lME[1]         
          
        fResNew=self.obj(npaGuess)
        lRes[0]=fResNew
        lME[0]=npaGuess
        nIter+=1
-       print lRes
+     
+       #restore the original MESpec 
+       for nucleus in self.mloNuclei:    
+         nucleus.llMESpec=list(llOriginalMESpec)
+
+#       print lRes
        print lME
        print fResNew
        #chek for oscilating convergence and average the ME of oscilations if found 
@@ -314,7 +388,7 @@ class ShellOpt:
       res = minimize(self.obj, npaGuess, method=sMethod, options=dOptions)
       print res
       
-   def GetIn(self):
+   def GetIn(self, initialize=True):
      import ShellNuclei
      fIn=open(self.sInPath,'r')
      sTempL=fIn.readline()
@@ -338,20 +412,23 @@ class ShellOpt:
          elif sTempL[0]=='MONO':
            anBody.append(3)
          else:
-           print "Error: invalid specification of matrix element class"
+           print "Error: invalid specification of matrix element category"
        else: 
          sTempL=fIn.readline().strip('\n')
          llMESpec.append(sTempL)
-         print sTempL
+#         print sTempL
      self.lsShared=[]
+     
      for nIdx in range(3):
        self.lsShared.append(fIn.readline().strip('\n'))
      self.sForm=fIn.readline().strip('\n')
-     print self.sForm
+     self.bExtrap=bool( eval(fIn.readline().strip('\n')))
+     print self.bExtrap
+#     print self.sForm
      self.mnNuclei=int(fIn.readline().strip('\n'))
      self.mloNuclei=[]
      for nIdx in range(self.mnNuclei):
-       self.mloNuclei.append(ShellNuclei.nucleus(int(fIn.readline()),int(fIn.readline()),float(fIn.readline()),self.sOutPath,fIn.readline().strip('\n'),fIn.readline().strip('\n'),self.lsShared,llMESpec,self.useGS))
+       self.mloNuclei.append(ShellNuclei.nucleus(int(fIn.readline()),int(fIn.readline()),float(fIn.readline()),self.sOutPath,fIn.readline().strip('\n'),fIn.readline().strip('\n'),self.lsShared,llMESpec,self.useGS, initialize,self.bExtrap))
        llStateSpec=[]
        temp=int(fIn.readline())
        for iii in range(temp):
@@ -398,6 +475,15 @@ class ShellOpt:
        string=''
        sFormME='{:10.4f}\t'
        for elem in npaME:
+         string=string+sFormME.format(float(elem))
+       fOut.write(string+'\n')
+       fOut.close()
+
+       fOut=open(self.sOutPath+'\\'+'tracking'+'\\AllME.dat','a+')
+       npaAllME=self.mloNuclei[0].getME(bAll=True)
+       sFormME='{:10.4f}\t'
+       string=''
+       for elem in npaAllME:
          string=string+sFormME.format(elem)
        fOut.write(string+'\n')
        fOut.close()
@@ -408,6 +494,7 @@ class ShellOpt:
 #returns the single particle energy lest square solution to the energy
    def singleParticleLeastSq(self):
      import numpy
+
      a=[]
      npaEExp=[]
      npaETh=[]
@@ -427,13 +514,51 @@ class ShellOpt:
        else: 
          npaEExp=temp
          npaETh=tempth
+
+     import sys
+     sys.path.append('C:\PythonScripts\generalmath')
+     import MatManip
+#get the sero cols of the matrix
+     rmList=MatManip.getZeroCols(a)
+#add to rmList the cols for poorly determined ME
+#     temp=self.getBadCol(a)
+#     rmList.extend(temp)
+#     rmList=sorted(list(set(rmList)))
+#     print rmList
+     if rmList!=[]:
+       lLabSpec=self.constructLabels(rmList)
+       lsOBLab=[]
+       npaTBLab=[]
+       
+       for elem in lLabSpec:
+#         print elem
+         if len (elem)==1:
+           lsOBLab.append(elem[0])
+         else:
+           if npaTBLab!=[]:
+             temp=numpy.array(elem,dtype=int)
+             temp.shape=[1,temp.size]
+             npaTBLab=numpy.append(npaTBLab,temp, axis=0)
+           else:
+             npaTBLab=numpy.array(elem, dtype=int)
+             npaTBLab.shape=[1, npaTBLab.size]
+       a=MatManip.rmSlice(rmList, a, 1)
+#       print lsOBLab
+       for nucleus in self.mloNuclei:
+         nucleus.llMESpec[0]=lsOBLab
+         nucleus.setMEnum()
      obme=self.mloNuclei[0].getOBME()
-     Hexpect=npaETh-numpy.dot(a,*obme)
+     obme.shape=[obme.size,1]
+     npaETh.shape=[npaETh.size,1]
+     Hexpect=npaETh-numpy.dot(a,obme)
+#     print 'Hexpect.shape',Hexpect.shape
+     npaEExp.shape=[npaEExp.size,1]
      target=npaEExp-Hexpect
+     
      ans=numpy.linalg.lstsq(a, target)
      ans=ans[0]
      
-     return ans#, a, target, obme
+     return ans, a, target, obme
          
          
 #returns the single particle energy + monopole lest square solution to the energy
@@ -466,40 +591,187 @@ class ShellOpt:
      import sys
      sys.path.append('C:\PythonScripts\generalmath')
      import MatManip
+#get the sero cols of the matrix
      rmList=MatManip.getZeroCols(a)
-#     print a.shape
-     if rmList!=[]:
-       a=MatManip.rmSlice(rmList, a, 1)
-       temp1=[]
-       temp2=[]
-       for elem in rmList:
-         if elem<=5:
-           temp1.append(elem)
-         if elem >5:
-           temp2.append(elem-6)
-#       print a.shape
-#       print len(rmList)
-#       print len(temp1), len(temp2)
-
-       for nucleus in self.mloNuclei:
-         nucleus.llMESpec[1]=nucleus.getMonoLabel()
-         
-         nucleus.llMESpec[0]=[ii for ii in range(6)  if ii not in temp1]
-         nucleus.llMESpec[1]=MatManip.rmSlice(temp2, nucleus.llMESpec[1],0)
-     npaME=self.mloNuclei[0].getOBME()
-#     print self.mloNuclei[0].getMonoLabel().shape
-#     print self.mloNuclei[0].llMESpec[1].shape
-#     print len(self.mloNuclei[0].llMESpec[0])
-#     print self.mloNuclei[0].getTBME()
-     npaME=numpy.append(npaME,self.mloNuclei[0].getTBME())
+#add to rmList the cols for poorly determined ME
+#     temp=self.getBadCol(a)
+#     rmList.extend(temp)
+#     rmList=sorted(list(set(rmList)))
      
+     if rmList!=[]:
+       lLabSpec=self.constructLabels(rmList)
+       lsOBLab=[]
+       npaTBLab=[]
+       
+       for elem in lLabSpec:
+         if len (elem)==1:
+           lsOBLab.append(elem[0])
+         else:
+           if npaTBLab!=[]:
+             temp=numpy.array(elem,dtype=int)
+             temp.shape=[1,temp.size]
+             npaTBLab=numpy.append(npaTBLab,temp, axis=0)
+           else:
+             npaTBLab=numpy.array(elem, dtype=int)
+             npaTBLab.shape=[1, npaTBLab.size]
+       print a.shape
+       a=MatManip.rmSlice(rmList, a, 1)
+       print a.shape
+       for nucleus in self.mloNuclei:
+         nucleus.llMESpec[0]=list(lsOBLab)
+         nucleus.llMESpec[1]=list(npaTBLab)
+         nucleus.setMEnum()
+     
+     npaME=self.mloNuclei[0].getME()
+#     print self.mloNuclei[0].manBody
+#     print '\n',npaEExp.shape, a.shape,npaME.shape, numpy.dot(a,npaME).shape,'\n'
      target=npaEExp-(npaETh-numpy.dot(a,npaME))
+#     print "target is ",target
+     npaWeights=numpy.zeros([npaEExp.size,npaEExp.size])
+     for nIdx, elem in enumerate(self.npaErrors):
+#       print elem
+       npaWeights[nIdx,nIdx]=1.0/(elem**2)
+#     ans, errors=MatManip.weightedlsq(a, npaWeights, target)
+#     print npaWeights.shape, a.shape, target.shape
+#     ans=numpy.linalg.lstsq(numpy.dot(npaWeights, a), numpy.dot(npaWeights, target))
      ans=numpy.linalg.lstsq(a, target)
+
      ans=ans[0]
-     return ans#, a, target, npaME
+
+     return ans, a, target, npaME
+ 
+#returns the single particle energy + monopole lest square solution to the energy
+   def summedMLS(self):
+     import numpy
+     a=[]
+     npaEExp=[]
+     npaETh=[]
+     for nucleus in self.mloNuclei:
+       temp=nucleus.summedMO()
+       npaNewLabels=temp[1]
+#       print temp.shape
+       if a!=[]:
+         a=numpy.append(a,temp[0],axis=0)
+       else:
+         a=numpy.array(temp[0])
+       temp=numpy.array(nucleus.getEExp(),dtype=float)
+       tempth=nucleus.getEnNu()
+       if npaEExp!=[]:
+         npaEExp=numpy.append(npaEExp,temp,axis=0)
+         npaETh=numpy.append(npaETh,tempth,axis=0)
+       else: 
+         npaEExp=temp
+         npaETh=tempth
+          
+#     print npaETh
+#     print numpy.dot(a,npaME)
+#     print a.shape
+#     print npaME.shape
+#     remove zero columns of the matrix and the associated matrix elements
+     import sys
+     sys.path.append('C:\PythonScripts\generalmath')
+     import MatManip
+#get the sero cols of the matrix
+     rmList=MatManip.getZeroCols(a)
+#add to rmList the cols for poorly determined ME
+#     temp=self.getBadCol(a)
+#     rmList.extend(temp)
+#     rmList=sorted(list(set(rmList)))
+     
+     if rmList!=[]:
+       
+       lLabSpec=self.constructML(rmList,npaNewLabels)
+       lsOBLab=[]
+       npaTBLab=[]
+       
+       for elem in lLabSpec:
+         if len (elem)==1:
+           lsOBLab.append(elem[0])
+         else:
+           if npaTBLab!=[]:
+             temp=numpy.array(elem,dtype=int)
+             temp.shape=[1,temp.size]
+             npaTBLab=numpy.append(npaTBLab,temp, axis=0)
+           else:
+             npaTBLab=numpy.array(elem, dtype=int)
+             npaTBLab.shape=[1, npaTBLab.size]
+       a=MatManip.rmSlice(rmList, a, 1)
+     npaME=self.mloNuclei[0].getME()
+#     print self.mloNuclei[0].manBody
+#     print '\n',npaEExp.shape, a.shape,npaME.shape, numpy.dot(a,npaME).shape,'\n'
+     target=npaEExp-(npaETh)
+#     print "target is ",target
+     npaWeights=numpy.zeros([npaEExp.size,npaEExp.size])
+     for nIdx, elem in enumerate(self.npaErrors):
+#       print elem
+       npaWeights[nIdx,nIdx]=1.0/(elem**2)
+#     ans, errors=MatManip.weightedlsq(a, npaWeights, target)
+#     print npaWeights.shape, a.shape, target.shape
+#     ans=numpy.linalg.lstsq(numpy.dot(npaWeights, a), numpy.dot(npaWeights, target))
+     diff=numpy.linalg.lstsq(a, target)
+     diff=diff[0]
+#     print  a.shape, target.shape, npaNewLabels.shape
+     ans, temp=self.mloNuclei[0].addDiff(diff, npaTBLab)
+     for nucleus in self.mloNuclei:
+      nucleus.llMESpec[1]=temp
+      
+     return ans, a, target, npaME
+
+
+
+#quickly set manbody variable 
+   def initmanbody(self):
+     for nucleus in self.mloNuclei:
+       nucleus.setmanBody([1,2])
+
+#Get cols of poorly determinied ME
+   def getBadCol(self,npaMat):
+     import numpy as np
+     import MatManip
+     
+     rmList=MatManip.getZeroCols(npaMat)
+     npaMat2=MatManip.rmSlice(rmList, npaMat, 1)
+     
+     npaME=self.mloNuclei[0].getME()
+     rmList=MatManip.getRepeatSlices(npaMat2,1)
+     npaMat3=MatManip.rmSlice(rmList,npaMat2,1)
+     npaME2=MatManip.rmSlice(rmList,npaME,0)
+    
+     psi=np.dot(np.transpose(npaMat3), npaMat3)
+     npaErr=np.diagonal(np.linalg.inv(psi))      
+     
+     lCond=[me/err for me, err in zip(npaME2,npaErr)]
+     rmList=[nIdx for nIdx, cond in enumerate(lCond) if abs(cond)>1]
+     npaME3=[npaME2[nIdx] for nIdx in rmList]
+#     print lCond
+     rmList=[nIdx for nIdx, me in enumerate(npaME) if me in npaME3]
+     return rmList
+#calculate linear fit errors for the matrix elements
+   def calcError(self):
+    import numpy as np
+    import MatManip
+    if self.sMethod=='mono':
+      ans, a, target, npaME=self.monopoleLeastSq()
+    elif self.sMethod=='smono':
+      ans, a, target, npaME=self.monopoleLeastSq()
+    elif self.sMethod=='single':
+      ans, a, target, npaME=self.singleParticleLeastSq()
+      
+    rmList=MatManip.getRepeatSlices(a,1)
+    ap=MatManip.rmSlice(rmList,a,1)
+    psi=np.dot(np.transpose(ap), ap)
+    print npaME
+    lME=MatManip.rmSlice(rmList,npaME, 0)
+    print lME
+    ans=MatManip.rmSlice(rmList,ans, 0)
+    return np.diagonal(np.linalg.inv(psi)), lME, rmList, ans
+    
  
 # plot the residual and the matrix elements as a funtion of iteration number
-   def plotResults(self):
+   def plotResults(self, sMethod='single', bError=False):
+     self.sMethod=sMethod
+     self.initmanbody()
+     lMEoriginal=list(self.mloNuclei[0].llMESpec)
      fResIn=open(self.sOutPath+'\\'+'tracking'+'\\res.dat','r')       
      npaRes=[]
      for line in fResIn:
@@ -510,45 +782,154 @@ class ShellOpt:
      import matplotlib.pyplot as plt
      plt.figure()
      plt.plot(npaRes, label='Res')
+     plt.plot()
      plt.title('RMS Energy Error by Iteration Number')
      plt.xlabel('Number of Iterations')
      plt.ylabel('RMS Energy Error (MeV)')
      plt.show()
-     
-#  in case the files are overwritten run the the mopole least square to rewrite the me labels
-     self.monopoleLeastSq()
-         
-     fMEIn=open(self.sOutPath+'\\'+'tracking'+'\\ME.dat','r') 
+            
+     fMEIn=open(self.sOutPath+'\\'+'tracking'+'\\ME.dat','r')
      npaME=[]
      for line in fMEIn:
-       npaME.append(line.strip().split())
+       temp=line.strip().split()
+       if len(npaME)!=0 and len(npaME[0])== len(temp):
+         npaME.append(temp)
+       else:
+         npaME=[temp]
      npaME=np.array(npaME)
+     import MatManip
+     import Discrete
+     npaErr,lME, rmList, npaAns=self.calcError()
+     npaME=MatManip.rmSlice(rmList, npaME,1)
+#     rmShortList=[int(elem)-6 for elem in rmList if elem>5]
      # construct labels
+     lLabSpec=self.constructResultLabels(rmList)
      lsLabels=[]
-     for elem in self.mloNuclei[0].llMESpec[0]:
-       lsLabels.append('SPE: '+str(elem+1))
-     for npaMEIdx in self.mloNuclei[0].llMESpec[1]:
-       tempstr='[ '
-       for nIdx in npaMEIdx:
-         tempstr+=str(nIdx)+' '
-       lsLabels.append('TBME: '+tempstr+']')
+#     re initialize the list llmespec
+     for nucleus in self.mloNuclei:
+       nucleus.llMESpec=list(lMEoriginal)
+
+#     print lLabSpec
+     for elem in lLabSpec:
+       if len (elem)==1:
+         lsLabels.append('SPE: '+str(elem[0]))
+       else:
+         tempstr='[ '
+         for nIdx in elem:
+           tempstr+=str(nIdx)+' '
+         lsLabels.append('TBME: '+tempstr+']')
 #     plot the ME
-     plt.figure()
+     lBest=Discrete.balFact(npaME.shape[1])
+     fig, ax=plt.subplots(nrows=lBest[0], ncols=lBest[1], sharex=True, sharey=True)
+     from itertools import chain
+     try:
+       ax= list(chain.from_iterable(ax))
+     except TypeError:
+       ''
+#       print ax, 'is not iterable'
+     
+#     print lME 
+#     print npaAns
+     from itertools import chain
+
      for nColIdx in range(npaME.shape[1]):
-       plt.plot(npaME[:,nColIdx],label=lsLabels[nColIdx])
-     plt.title('ME by Iteration Number')
-     plt.xlabel('Number of Iterations')
-     plt.ylabel('ME (MeV)')
-#     plt.legend(loc='best')
+       ax[nColIdx].plot(npaME[:,nColIdx],label=lsLabels[nColIdx])
+       if self.sMethod=='single' or self.sMethod=='mono':
+         ax[nColIdx].plot([0,npaME.shape[0]-1],[npaAns[nColIdx],npaAns[nColIdx]],ls='-.',color='k', label='Next Linear Fit')
+       ax[nColIdx].plot([0,npaME.shape[0]-1],[lME[nColIdx],lME[nColIdx]],ls='--',color='r', label='Final ME')
+       if bError:
+         x=[0,int(npaME.shape[0])-1]
+         y1=[lME[nColIdx]+npaErr[nColIdx]]*2
+         y1=list(chain(*y1))
+         y2=[lME[nColIdx]-npaErr[nColIdx]]*2
+         y2=list(chain(*y2))       
+         ax[nColIdx].fill_between(x, y1,y2, alpha=0.5, label='Error Band')
+#     ax[1].title='ME by Iteration Number'
+#       ax[nColIdx].xlabel('Number of Iterations')
+#       ax[nColIdx].ylabel('ME (MeV)')
+       ax[nColIdx].legend(loc='best')
      plt.show()
-          
+
+#consrtuct a single list of labels for use in the fitting procedure
+   def constructLabels(self, rmList):
+     from itertools import chain
+     for nucleus in self.mloNuclei:
+       nucleus.llMESpec[0]=list(range(1,self.mloNuclei[0].countOBME()+1))
+     lLabSpec=list(chain.from_iterable(self.mloNuclei[0].llMESpec))
+     temp=[]
+#     print lLabSpec
+     for elem in lLabSpec:
+       if type(elem).__name__=='int':
+#         print type(elem).__name__
+         temp.append([elem])
+       else:
+         temp.append(elem)
+#     print len(temp)
+     lLabSpec=list(temp)
+#     print lLabSpec
+#     print 'lab',len(lLabSpec)
+#     print rmList
+     lLabSpec=list([elem for nIdx, elem in enumerate(lLabSpec) if nIdx not in rmList])
+#     print 'lab',len(lLabSpec)
+     return lLabSpec
+
+#consrtuct a single list of labels for use in Plotting the results
+#the spe are not reinitialized here
+   def constructResultLabels(self, rmList):
+     from itertools import chain
+     lLabSpec=list(chain.from_iterable(self.mloNuclei[0].llMESpec))
+     temp=[]
+#     print lLabSpec
+     for elem in lLabSpec:
+       if type(elem).__name__=='int':
+#         print type(elem).__name__
+         temp.append([elem])
+       else:
+         temp.append(elem)
+#     print len(temp)
+     lLabSpec=list(temp)
+#     print lLabSpec
+#     print 'lab',len(lLabSpec)
+#     print rmList
+     lLabSpec=list([elem for nIdx, elem in enumerate(lLabSpec) if nIdx not in rmList])
+#     print 'lab',len(lLabSpec)
+     return lLabSpec
+
+
+     
+#consrtuct a single list of labels
+   def constructML(self, rmList, labels):
+     from itertools import chain
+     for nucleus in self.mloNuclei:
+       nucleus.llMESpec[0]=list(range(1,self.mloNuclei[0].countOBME()+1))
+#     lLabSpec=list(chain.from_iterable(self.mloNuclei[0].llMESpec))
+     lLabSpec=list(chain.from_iterable([range(1,self.mloNuclei[0].countOBME()+1),labels]))
+     temp=[]
+#     print lLabSpec
+     for elem in lLabSpec:
+       if type(elem).__name__=='int':
+#         print type(elem).__name__
+         temp.append([elem])
+       else:
+         temp.append(elem)
+#     print len(temp)
+     lLabSpec=temp
+#     print lLabSpec
+#     print 'lab',len(lLabSpec)
+     lLabSpec=[elem for nIdx, elem in enumerate(lLabSpec) if nIdx not in rmList]
+#     print 'lab',len(lLabSpec)
+     return lLabSpec
+       
+     
+     
 import sys
 sys.path.append('c:\\PythonScripts\\NushellScripts\\')
 sys.path.append('C:\PythonScripts\generalmath')
 
-x=ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in','c:\\PythonScripts\\NushellScripts\\test')
+x=ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in','c:\\PythonScripts\\NushellScripts\\test', 'c:\\PythonScripts\\NushellScripts\\errors.dat',initialize=True, conservative=False)
 
 #ans, a, target, npaME=x.monopoleLeastSq()
-#print x.IterativeLSq(sMethod='mono')
+#err, lME, rmList, ans=x.calcError()
+#print x.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=100, fTolin=10**-3)
 #x.performOptimization()
-x.plotResults()
+x.plotResults(sMethod='smono')
