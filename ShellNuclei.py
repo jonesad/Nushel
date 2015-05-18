@@ -96,25 +96,37 @@ class nucleus(ShellOptFl.MEhandler):
     return res
     
 # Get Nushell energies
-  def getEnNu(self):
+  def getEnNu(self,bAll=False):
     sLevName=self.getLevName()
     afETh=[]
+    lsNewList=[]
+    nIdx=0
     fTh=open(self.sPath+'\\'+self.sName+"\\"+sLevName)
     for line in fTh:
       line=line.strip().split()
-      for lev in self.mllspec:
-        lev=lev.strip().split()
-#        print '\n\n'
-#        print lev
-#        print line
-#        print '\n\n'
-        if len(line)>=6 and lev[0]==line[4] and lev[1]==line[1] and lev[2]==line[6]:
-          if self.useGS==0:
-            afETh.append(float(line[3]))
-          elif self.useGS==1:
-            afETh.append(float(line[2]))
-          break
-    if len(afETh)!=len(self.mllspec):
+      if bAll==False:
+        for lev in self.mllspec:
+          lev=lev.strip().split()
+  #        print '\n'
+  #        print self.sName, lev 
+  #        print line
+  #        print '\n'
+          if len(line)>=6 and lev[0]==line[4] and lev[1]==line[1] and lev[2]==line[6]:
+            if self.useGS==0:
+              afETh.append(float(line[3]))
+            elif self.useGS==1:
+              afETh.append(float(line[2]))
+            break
+          #ignore first few lines and ubound states
+      elif bAll==True and len(line)>=6 and nIdx>5 and float(line[2])<0.:
+        lsNewList.append(line[4]+' '+line[1]+' '+line[6])
+      nIdx+=1
+#    change level spec to all levels and then get all levels on the list   
+    if bAll==True:
+      self.mllspec=list(lsNewList)
+      afETh=self.getEnNu(bAll=False)
+            
+    if len(afETh)!=len(self.mllspec)and bAll==False:
       print "Error: # of Theory levels found does not match requested # in nAZ=", self.nAZ
       print "Requested:", len(self.mllspec)
       print "Found:", len(afETh)
@@ -354,10 +366,148 @@ class nucleus(ShellOptFl.MEhandler):
     if len(self.mllspec)!=npaError.size:
       print "Warning: expected ",len(self.mllspec),' errors and instead found ',npaError.size, '.'
     return npaError
-# calculate the error in energies by varying The ME within a given range
-#  def calcEThErr(self, npaMESpec, npaME, npaError, nDat=30):
-#    nDim=npaMESpec.shape[0]
-#    nDist    
-#    for nDummy in range(nDat):
-          
+  
+  #repeatedly calculate energies by sampling gaussians with standard deviation of 
+  #matrix element errors and adding them to the orignal ME nSize times returns an
+  #np array with shape [nSize,nEn]
+  def accumulateEdist(self, npaErr, nSize, bAllME=False,bAllEn=True,fDefaultError=0.1):
+    from numpy.random import randn
+    from numpy import array
+    from numpy import dot  
+    from numpy import append
+    if nSize>0:
+      npaOrigME=array(self.getME(bAllME))
+      npaEsample=array(self.getEnNu(bAllEn))
+      if bAllME==True and npaErr.size<npaOrigME.size:
+        npaErr=append(npaErr,[fDefaultError]*abs(npaErr.size-npaOrigME.size))
+      npaEsample.shape=[1,npaEsample.size]
+      for nIdx in range(nSize):
+        npaGuess=array(npaOrigME+dot(randn(*(npaErr.shape)), npaErr))
+        self.takeME(npaGuess)
+        self.runSM()
+        temp=array(self.getEnNu())
+        temp.shape=[1,temp.size]
+        if temp.size==npaEsample.shape[1]:
+          npaEsample=append(npaEsample,temp,axis=0)
+      self.takeME(npaOrigME)
+      return npaEsample
+    else:
+      print 'nSize=', nSize, ' skip accumulation of data.'
+
+#    normalized gaussian function
+  def gaussian(self,x, mu, sig):
+    import numpy as np    
+    from math import pi
+    from math import sqrt
+    return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))/(sqrt(2.*pi)*sig)    
     
+# calculate the error in energies by varying The ME within a given range
+  def calcEThErr(self, npaErr, nSize=100, bPrev=False, bAllME=False,bAllEn=True):
+    from numpy import histogram
+    from math import sqrt
+    from scipy.optimize import minimize
+    from numpy import array
+    from numpy import mean
+    from numpy import std
+    from numpy import dot
+    from numpy import append
+#    print bPrev
+    if bPrev==False:
+      npaSample=self.accumulateEdist(npaErr, nSize,bAllME,bAllEn)
+      self.writeDat(npaSample)
+    elif bPrev==True:
+      npaSample=self.getPrevHist()
+#      print 'init'
+      if nSize>0:
+        temp=self.accumulateEdist(npaErr, nSize)
+        self.writeDat(temp)
+        npaSample=append(npaSample,temp,axis=0)
+#    print npaSample
+    nSize=npaSample.shape[0]
+    nBinNum=int(sqrt(float(nSize)))
+#    print npaSample.shape,nBinNum
+    lHist=[]
+    lBins=[]
+    lMu=[]
+    lSigma=[]
+    for nEIdx in range(npaSample.shape[1]):
+      npaHist,npaBinEdges=histogram(array(npaSample[:,nEIdx]),nBinNum, density=True)
+      fMu0=mean(npaSample[:,nEIdx])
+      fSigma0=std(npaSample[:,nEIdx])
+#      save the histograms for later      
+      lHist.append(npaHist)
+      lBins.append(npaBinEdges)
+#      fit a gaussian to the histogram
+      x=[]
+      for nIdx in range(npaBinEdges.size-1):
+        x.append(0.5*(npaBinEdges[nIdx]+npaBinEdges[nIdx+1]))
+      x=array(x)
+#      print npaHist
+      obj=lambda param: dot(self.gaussian(x,param[0],param[1])-array(npaHist), self.gaussian(x,param[0],param[1])-array(npaHist))
+      x0=array([fMu0,fSigma0])
+
+      from scipy.integrate import quad
+      tempfun=lambda x: self.gaussian(x,x0[0],x0[1])
+      print "pre",obj(x0), x0
+      print quad(tempfun,-100,100)
+
+      res=minimize(obj, x0)
+
+      tempfun=lambda x: self.gaussian(x,x0[0],x0[1])      
+      print 'post',obj(res.x), res.x
+      print quad(tempfun,-100,100)
+      lMu.append(res.x[0])
+      lSigma.append(res.x[1])
+    return lHist,lBins,lMu,lSigma, nSize
+    
+  def plotEthError(self, lHistm, lBins, lMu, lSigma,nSize):
+    import Discrete
+    import numpy as np
+    
+    best=Discrete.balFact(len(lHistm))
+    from matplotlib import pyplot as plt
+    fig, axray=plt.subplots(best[0], best[1])
+    from itertools import chain
+    try:
+      axray= list(chain.from_iterable(axray))
+    except TypeError:
+      ''        
+    nIdx=0
+    for ax,hist,bins,mu, sigma in zip(axray, lHistm, lBins,lMu, lSigma):
+      ax.bar(bins[:-1],hist, abs(bins[1]-bins[0]),label='Energy Hist N={:4d}'.format(nSize))
+      xmin=max([np.amin(bins),mu-5.0*sigma])
+      xmax=min([np.amax(bins),mu+5.0*sigma])
+      x=np.linspace(xmin,xmax, 200)
+      ax.plot(x,self.gaussian(x,mu,sigma), color='r',label='Fit: $\mu={:3.1f} \sigma={:2.1e}$'.format(mu,sigma))
+      ax.legend(loc='best')
+      ax.set_title('[A,Z]='+str(self.nAZ)+', ($J n_J \pi$)=('+str(self.mllspec[nIdx]).strip()+')')
+      ax.set_xlabel('Energy(MeV)')
+      ax.set_ylabel('$dP/dE$ (MeV$^{-1}$)')
+      nIdx+=1
+    plt.tight_layout(.025)
+    plt.show()    
+    
+    
+  def writeDat(self, npaSample):    
+    fOut=open(self.sPath+'\\'+self.sName+'\\'+'tracking'+'\\energydist.dat','a+')
+    sFormat='{:10.5f}\t'
+    for nRIdx in range(npaSample.shape[0]):
+      sNew=''
+      for nCIdx in range(npaSample.shape[1]):
+        sNew+=sFormat.format(npaSample[nRIdx,nCIdx])
+      fOut.write(sNew+'\n')
+    fOut.close()
+    
+  def getPrevHist(self):
+    fIn=open(self.sPath+'\\'+self.sName+'\\'+'tracking'+'\\energydist.dat','r')
+    import numpy as np
+    npaDat=np.array([])
+    for line in fIn:
+      line=line.strip().split()
+      line=np.array(line,dtype=float)
+      line.shape=[1,line.size]
+      if npaDat!=np.array([]):
+        npaDat=np.append(npaDat,np.array(line),axis=0)
+      elif np.all(npaDat==np.array([])):
+        npaDat=np.array(line)
+    return npaDat
