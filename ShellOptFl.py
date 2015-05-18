@@ -22,7 +22,7 @@ class MEhandler:
     self.sName=str(sName)
     #interaction name string without the .int extension
     self.sInt=str(sInt)
-    #boolean variable that tracke whether the SPE line has atries relating to mass extrapolation of matrix elements
+    #boolean variable that tracks whether the SPE line has entries relating to mass extrapolation of matrix elements
     self.bExtrap=bExtrap
     #initialize the single particle matrix elements
     self.llMESpec[0]=range(1,self.countOBME()+1)    

@@ -878,6 +878,7 @@ class ShellOpt:
      for nucleus in self.mloNuclei:
        nucleus.llMESpec[0]=list(range(1,self.mloNuclei[0].countOBME()+1))
      lLabSpec=list(chain.from_iterable(self.mloNuclei[0].llMESpec))
+
      if self.sForm=='iso':
        for num in range(3):
          try:
@@ -960,22 +961,22 @@ import sys
 sys.path.append('c:\\PythonScripts\\NushellScripts\\')
 sys.path.append('C:\PythonScripts\generalmath')
 
-x=ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in','c:\\PythonScripts\\NushellScripts\\test', 'c:\\PythonScripts\\NushellScripts\\errors.dat',initialize=False, conservative=False)
+x=ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in','c:\\PythonScripts\\NushellScripts\\test', 'c:\\PythonScripts\\NushellScripts\\errors.dat',initialize=True, conservative=False)
 
 #ans, a, target, npaME=x.monopoleLeastSq()
 #err, lME, rmList, ans=x.calcError()
 
 #x.addMENoise(3.0)
 
-#print x.IterativeLSq(sMethod='single',bMix=False, nMaxIter=100, fTolin=10**-3)
+print x.IterativeLSq(sMethod='mono',bMix=False, nMaxIter=100, fTolin=10**-3)
 #x.performOptimization()
-x.sMethod='single'
-err=x.calcError()[0]
+#x.sMethod='single'
+#err=x.calcError()[0]
 #print err
-nSpecSize=0
-en=x.mloNuclei[1].getEnNu(bAll=True)
-lHist,lBins,lMu,lSigma,nSize=x.mloNuclei[1].calcEThErr(err, nSpecSize,bPrev=True,bAllME=True)
-nStop=8
-x.mloNuclei[1].plotEthError(lHist[:nStop], lBins[:nStop], lMu[:nStop], lSigma[:nStop], nSize)
+#nSpecSize=0
+#en=x.mloNuclei[1].getEnNu(bAll=True)
+#lHist,lBins,lMu,lSigma,nSize=x.mloNuclei[1].calcEThErr(err, nSpecSize,bPrev=True,bAllME=True)
+#nStop=8
+#x.mloNuclei[1].plotEthError(lHist[:nStop], lBins[:nStop], lMu[:nStop], lSigma[:nStop], nSize)
 
-#x.plotResults(sMethod='single', bError='True')
+x.plotResults(sMethod='mono', bError='True')
