@@ -21,7 +21,7 @@ def CreateInFile(sInfilePath):
   #restriction
   fInFile.write('n\n')
   #interaction
-  fInFile.write('usdc\n')
+  fInFile.write('usdcpn\n')
   #formalism iso/pn
   fInFile.write('iso\n')
   #does the interaction extrapolate matrix elements
@@ -580,16 +580,16 @@ class ShellOpt:
 #returns the single particle energy + monopole lest square solution to the energy
    def monopoleLeastSq(self):
      import numpy
-     a=[]
+     npaMono=[]
+     npaSPOcc=[]
      npaEExp=[]
      npaETh=[]
      for nucleus in self.mloNuclei:
        temp=nucleus.calcMonoOcc()
-#       print temp.shape
-       if a!=[]:
-         a=numpy.append(a,temp,axis=0)
+       if npaMono!=[]:
+         npaMono=numpy.append(npaMono,temp,axis=0)
        else:
-         a=numpy.array(temp)
+         npaMono=numpy.array(temp)
        temp=numpy.array(nucleus.getEExp(),dtype=float)
        tempth=nucleus.getEnNu()
        if npaEExp!=[]:
@@ -598,50 +598,33 @@ class ShellOpt:
        else: 
          npaEExp=temp
          npaETh=tempth
-          
-#     print npaETh
-#     print numpy.dot(a,npaME)
-#     print a.shape
-#     print npaME.shape
-#     remove zero columns of the matrix and the associated matrix elements
+         
+       temp=nucleus.getReducedOcc()
+       if npaSPOcc!=[]:
+         npaSPOcc=numpy.append(npaSPOcc,temp,axis=0)
+       else:
+         npaSPOcc=numpy.array(temp)
      import sys
      sys.path.append('C:\PythonScripts\generalmath')
      import MatManip
-#get the sero cols of the matrix
-     rmList=MatManip.getZeroCols(a)
-#add to rmList the cols for poorly determined ME
-#     temp=self.getBadCol(a)
-#     rmList.extend(temp)
-#     rmList=sorted(list(set(rmList)))
      
-     if rmList!=[]:
-       print a.shape
-       a=MatManip.rmSlice(rmList, a, 1)
-       print a.shape
-
-       lLabSpec=self.constructLabels(rmList)
-       lsOBLab=[]
-       npaTBLab=[]
-       
-       for elem in lLabSpec:
-         if len (elem)==1:
-           lsOBLab.append(elem[0])
-         else:
-           if npaTBLab!=[]:
-             temp=numpy.array(elem,dtype=int)
-             temp.shape=[1,temp.size]
-             npaTBLab=numpy.append(npaTBLab,temp, axis=0)
-           else:
-             npaTBLab=numpy.array(elem, dtype=int)
-             npaTBLab.shape=[1, npaTBLab.size]
+     SPRMList=MatManip.getZeroCols(npaSPOcc)
+     MonoRMList=MatManip.getZeroCols(npaMono)
+     
+     if SPRMList!=[]:
+       npaSPOcc=MatManip.rmSlice(SPRMList,npaSPOcc, 1)
+       npaMono=MatManip.rmSlice(MonoRMList,npaMono, 1)
        for nucleus in self.mloNuclei:
-         nucleus.llMESpec[0]=list(lsOBLab)
-         nucleus.llMESpec[1]=list(npaTBLab)
+#         print nucleus.llMESpec[0]
+         nucleus.llMESpec[0]=list(MatManip.rmSlice(SPRMList,numpy.array(nucleus.llMESpec[0]),0))
+#         print nucleus.llMESpec[0]
+         nucleus.llMESpec[1]=MatManip.rmSlice(MonoRMList,nucleus.llMESpec[1],1)
          nucleus.setMEnum()
      
      npaME=self.mloNuclei[0].getME()
 #     print self.mloNuclei[0].manBody
 #     print '\n',npaEExp.shape, a.shape,npaME.shape, numpy.dot(a,npaME).shape,'\n'
+     a=numpy.append(npaSPOcc,npaMono,1)
      target=npaEExp-(npaETh-numpy.dot(a,npaME))
 #     print "target is ",target
      npaWeights=numpy.zeros([npaEExp.size,npaEExp.size])
@@ -650,7 +633,6 @@ class ShellOpt:
        npaWeights[nIdx,nIdx]=1.0/(elem**2)
 #     ans=numpy.linalg.lstsq(numpy.dot(npaWeights, a), numpy.dot(npaWeights, target))
      ans=numpy.linalg.lstsq(a, target)
-
      ans=ans[0]
 
      return ans, a, target, npaME

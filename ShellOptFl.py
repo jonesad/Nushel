@@ -112,6 +112,8 @@ class MEhandler:
 #          print "bAll is true"          
         elif len(self.llMESpec[0])!=0:
           for elem in self.llMESpec[0]:
+            print line 
+            print int(elem)
             npaME.append(line[int(elem)])
         break            
     fIntSrc.close()

@@ -227,21 +227,7 @@ class nucleus(ShellOptFl.MEhandler):
     npaMono=np.divide(npaMono,denom)
 #    print npaMono.max()
 #    print npaMono
-    for nIdx in self.llMESpec[0]:
-      if len(tempocc) != 0:
-        temp=np.array(npaOcc[:,nIdx-1])
-        temp.shape=[temp.size,1]
-        tempocc=np.append(tempocc, temp, axis=1)
-      elif len(tempocc)==0:
-        tempocc=np.array(npaOcc[:,nIdx-1])
-        tempocc.shape=[tempocc.size,1]
-      else:
-        print 'logic err'
-    if tempocc!=[]:
-      npaOcc=tempocc
-      
-    temp=np.append(npaOcc,npaMono,axis=1)
-    return temp    
+    return npaMono    
 
     #monopole term calculation works with p-n formalism matrix element labels
   def summedMO(self):
@@ -340,9 +326,30 @@ class nucleus(ShellOptFl.MEhandler):
               npaOcc=np.append(npaOcc, temp, axis=0)              
             else:
               npaOcc=temp
-
       fIn.close()
       return np.array(npaOcc,dtype=float)
+#From the occupations listed return only the ones associated with SPE on the 
+#llMESpec[0] list     
+  def getReducedOcc(self):
+    import numpy as np
+    tempocc=[]
+    npaOcc=self.getOcc(self.getLevName())
+    
+    for nIdx in self.llMESpec[0]:
+      if len(tempocc) != 0:
+        temp=np.array(npaOcc[:,nIdx-1])
+        temp.shape=[temp.size,1]
+        tempocc=np.append(tempocc, temp, axis=1)
+      elif len(tempocc)==0:
+        tempocc=np.array(npaOcc[:,nIdx-1])
+        tempocc.shape=[tempocc.size,1]
+    if tempocc!=[]:
+      npaOcc=np.array(tempocc)
+    else:
+      print 'Warning getReducedOcc is returning empty!'  
+      
+    return npaOcc
+      
 #get errors on the levels used in the fit
   def getLevError(self, sErrorPath):
     levs=self.mllspec
