@@ -193,10 +193,7 @@ class nucleus(ShellOptFl.MEhandler):
     sLevName=self.getLevName()
     npaLabel=self.getLabel()
     npaOcc=self.getOcc(sLevName)
-    tempocc=[]
-    import numpy as np
-
-      
+    import numpy as np      
     nMonoSize=self.getMonoME().size    
     npaMono=np.zeros([npaOcc.shape[0],nMonoSize])
     npaMonoLabel=self.getMonoLabel()

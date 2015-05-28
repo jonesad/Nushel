@@ -13,9 +13,12 @@ def CreateInFile(sInfilePath):
   fInFile.write('1\n')
   # matrix element specification
   #monopole
-  fInFile.write('OBME\n')
+  fInFile.write('MONO\n')
 #  #Single particle
 #  fInFile.write('OBME\n')
+#  #Two particle
+#  fInFile.write('TBME\n')
+
   #model space specification
   fInFile.write('sd\n')
   #restriction
@@ -610,18 +613,24 @@ class ShellOpt:
      
      SPRMList=MatManip.getZeroCols(npaSPOcc)
      MonoRMList=MatManip.getZeroCols(npaMono)
-     
+#     print npaMono
      if SPRMList!=[]:
        npaSPOcc=MatManip.rmSlice(SPRMList,npaSPOcc, 1)
        npaMono=MatManip.rmSlice(MonoRMList,npaMono, 1)
        for nucleus in self.mloNuclei:
+
 #         print nucleus.llMESpec[0]
          nucleus.llMESpec[0]=list(MatManip.rmSlice(SPRMList,numpy.array(nucleus.llMESpec[0]),0))
 #         print nucleus.llMESpec[0]
-         nucleus.llMESpec[1]=MatManip.rmSlice(MonoRMList,nucleus.llMESpec[1],1)
+
+#         print nucleus.llMESpec[1] 
+         nucleus.llMESpec[1]=MatManip.rmSlice(MonoRMList,nucleus.llMESpec[1],0)
+#         print nucleus.llMESpec[1] 
+                  
          nucleus.setMEnum()
      
      npaME=self.mloNuclei[0].getME()
+#     print npaME
 #     print self.mloNuclei[0].manBody
 #     print '\n',npaEExp.shape, a.shape,npaME.shape, numpy.dot(a,npaME).shape,'\n'
      a=numpy.append(npaSPOcc,npaMono,1)
@@ -808,9 +817,10 @@ class ShellOpt:
        nucleus.llMESpec=list(lMEoriginal)
 
 #     print lLabSpec
-     for elem in lLabSpec:
-       if len (elem)==1:
-         lsLabels.append('SPE: '+str(elem[0]))
+     for elem in lLabSpec: 
+       print str(type(elem))
+       if str(type (elem))=='<type \'numpy.int32\'>':
+         lsLabels.append('SPE: '+str(elem))
        else:
          tempstr='[ '
          for nIdx in elem:
@@ -950,7 +960,7 @@ x=ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in','c:\\PythonScripts\\
 
 #x.addMENoise(3.0)
 
-print x.IterativeLSq(sMethod='mono',bMix=False, nMaxIter=100, fTolin=10**-3)
+#print x.IterativeLSq(sMethod='mono',bMix=False, nMaxIter=100, fTolin=10**-5)
 #x.performOptimization()
 #x.sMethod='single'
 #err=x.calcError()[0]
@@ -961,4 +971,4 @@ print x.IterativeLSq(sMethod='mono',bMix=False, nMaxIter=100, fTolin=10**-3)
 #nStop=8
 #x.mloNuclei[1].plotEthError(lHist[:nStop], lBins[:nStop], lMu[:nStop], lSigma[:nStop], nSize)
 
-x.plotResults(sMethod='mono', bError='True')
+#x.plotResults(sMethod='mono', bError=False)
