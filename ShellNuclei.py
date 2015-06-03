@@ -117,7 +117,7 @@ class nucleus(ShellOptFl.MEhandler):
             elif self.useGS==1:
               afETh.append(float(line[2]))
             break
-          #ignore first few lines and ubound states
+          #ignore first few lines and unbound states
       elif bAll==True and len(line)>=6 and nIdx>5 and float(line[2])<0.:
         lsNewList.append(line[4]+' '+line[1]+' '+line[6])
       nIdx+=1
@@ -130,6 +130,9 @@ class nucleus(ShellOptFl.MEhandler):
       print "Error: # of Theory levels found does not match requested # in nAZ=", self.nAZ
       print "Requested:", len(self.mllspec)
       print "Found:", len(afETh)
+#    print afETh
+#    raw_input("Press Enter to continue...")
+    
     fTh.close()
     return afETh 
 

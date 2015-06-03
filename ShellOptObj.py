@@ -398,6 +398,7 @@ class ShellOpt:
       
    def GetIn(self, initialize=True):
      import ShellNuclei
+     nMono=False
      fIn=open(self.sInPath,'r')
      sTempL=fIn.readline()
      llMESpec=[[],[]]
@@ -431,7 +432,7 @@ class ShellOpt:
        self.lsShared.append(fIn.readline().strip('\n'))
      self.sForm=fIn.readline().strip('\n')
      self.bExtrap=bool( eval(fIn.readline().strip('\n')))
-     print self.bExtrap
+#     print self.bExtrap
 #     print self.sForm
      self.mnNuclei=int(fIn.readline().strip('\n'))
      self.mloNuclei=[]
@@ -464,10 +465,11 @@ class ShellOpt:
          #get the energy difference for the releveant particles
 #       print 'geting ediff'
        temp=oNuc.Ediff()
-       
        for elem in temp:
          res.append(elem)
 
+#     print res
+#     raw_input("Press Enter to continue...")
      res=np.array(res)     
 #     print res
      temp=np.sqrt(np.dot(res,res)/float(len(res)))
@@ -954,13 +956,12 @@ sys.path.append('c:\\PythonScripts\\NushellScripts\\')
 sys.path.append('C:\PythonScripts\generalmath')
 
 x=ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in','c:\\PythonScripts\\NushellScripts\\test', 'c:\\PythonScripts\\NushellScripts\\errors.dat',initialize=True, conservative=False)
-
 #ans, a, target, npaME=x.monopoleLeastSq()
 #err, lME, rmList, ans=x.calcError()
 
 #x.addMENoise(3.0)
 
-#print x.IterativeLSq(sMethod='mono',bMix=False, nMaxIter=100, fTolin=10**-5)
+print x.IterativeLSq(sMethod='mono',bMix=False, nMaxIter=100, fTolin=10**-5)
 #x.performOptimization()
 #x.sMethod='single'
 #err=x.calcError()[0]

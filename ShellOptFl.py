@@ -29,8 +29,25 @@ class MEhandler:
     
 #set manBody outside of initialization
   def setmanBody(self, anBody):
-    self.manBody=anBody
+    try:
+      test=[3]*len(anBody)
+    except TypeError:
+      test=3  
+#    print anBody, test, anBody==test
+    try:
+      if any(anBody == test):
+        self.manBody=[1,2]
+        self.llMESpec[1]=self.getMonoLabel()
+      else:
+        self.manBody=anBody
+    except TypeError:
+      if anBody == test:
+        self.manBody=[1,2]
+        self.llMESpec[1]=self.getMonoLabel()  
+      else:
+        self.manBody=anBody
     self.setMEnum()
+#    print self.manBody,self.nMEnum
 
 #Determine what number of each type of ME are to be read and written
   def setMEnum(self):      
@@ -327,9 +344,13 @@ class MEhandler:
     for nCt, elem in enumerate(self.nMEnum):
       if self.manBody[nCt]==1:
         npaOBME=npaME[:self.nMEnum[nCt]]
-#        print npaOBME
+#        print 'self.nMEnum[nCt]', self.nMEnum[nCt]
+        print ' npaOBME', npaOBME
       elif self.manBody[nCt]==2:
-        npaTBME=npaME[sum(self.nMEnum[:nCt]):sum(self.nMEnum[:nCt+1])]      
+        npaTBME=npaME[sum(self.nMEnum[:nCt]):sum(self.nMEnum[:nCt+1])]
+#        print 'sum(self.nMEnum[:nCt])', sum(self.nMEnum[:nCt])
+#        print  'sum(self.nMEnum[:nCt+1])', sum(self.nMEnum[:nCt+1])
+        print ' npaTBME', npaTBME
     if len(npaOBME)>0:
       self.writeOBME(npaOBME) 
     if len(npaTBME)>0:
@@ -353,17 +374,38 @@ class MEhandler:
 
     return npaME
     
-#Check the interaction for repititions of ME
+#Check the interaction file for repititions of line
   def checkRep(self):
     fIntSrc=open(self.makeIntPath(''), 'r')
     myLines=[]    
     for line in fIntSrc:
-      myLines.append(line[:21])
+      line=line.strip()
+      myLines.append(line)
     if len(myLines)==len(set(myLines)):
       print "Each line in the file is unique"
     else:
       print "Repititions exist"
       print "Of", len(myLines), 'lines', len(set(myLines)), ' are unique.'
+
+#Check the interaction file for repititions of labels
+  def checkLabelRep(self):
+    fIntSrc=open(self.makeIntPath(''), 'r')
+    myLines=[] 
+    nOffset=-2
+    for line in fIntSrc:
+      line=line.strip().split()
+      print line 
+      print line[:nOffset]
+      tempstr=''
+      for elem in line[:nOffset]:
+        tempstr+=elem
+      myLines.append(tempstr)
+      
+    if len(myLines)==len(set(myLines)):
+      print "Each label in the file is unique"
+    else:
+      print "Repititions exist"
+      print "Of", len(myLines), 'labels', len(set(myLines)), ' are unique.'
       
     
 #   add a certain value to the monopole term for a given label
