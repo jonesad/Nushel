@@ -13,7 +13,7 @@ import ShellOptFl
 class nucleus(ShellOptFl.MEhandler):
   'class for managing a single nucleus'
 #take the path and create a sub directory for the nucleus and run a default calculation for the nucleus.
-  def __init__(self,  nZ, nA, fGSE,sPath, sMMDR, sPar, lsShared,llMESpec,useGS,initialize=True, bExtrap=True):
+  def __init__(self,  nZ, nA, fGSE,sPath, sMMDR, sPar, lsShared,llMESpec,useGS,sForm,initialize=True, bExtrap=True):
     import os
     self.sPath=sPath
     self.nAZ=[nA,nZ]    
@@ -24,8 +24,6 @@ class nucleus(ShellOptFl.MEhandler):
       os.makedirs(self.sPath+'\\'+self.sName+'\\'+'tracking')  
     self.writeAns(sMMDR, sPar,lsShared)
     self.sInt=lsShared[2]
-    if len(llMESpec[0])==0:
-      llMESpec[0]=list(range(1,7))
     self.llMESpec=llMESpec
     if initialize:
       self.runSM()
@@ -33,7 +31,9 @@ class nucleus(ShellOptFl.MEhandler):
     self.useGS=useGS
     self.bExtrap=bExtrap
     #initialize the single particle matrix elements
-    self.llMESpec[0]=range(1,self.countOBME()+1)    
+    if len(llMESpec[0])==0:
+      self.llMESpec[0]=range(1,self.countOBME()+1)
+    self.sForm=sForm
     
     
 #make a '.ans' file for use with Nushellx   
@@ -80,9 +80,11 @@ class nucleus(ShellOptFl.MEhandler):
     fIn.close()
     return sLevName
 #  Get the energy diff for the experimental and calculated levels 
-  def Ediff(self):
+  def Ediff(self, bTrackDiff=False):
     afETh=self.getEnNu()
+#    print 'Eth',afETh
     afEExp=self.getEExp()
+#    print  'Eexp',afEExp
     import numpy as np
     #check if both the energies were found
     if len(afEExp)==len(afETh):
@@ -93,6 +95,12 @@ class nucleus(ShellOptFl.MEhandler):
       print afEExp
       print afETh
       print "Error: The number of Theoretical and experimental energies are not the same. Using default value of 100 MeV per missing level."
+    if bTrackDiff:
+      fOut=open(self.sPath+'\\'+self.sName+'\\'+'tracking'+'\\EDiff.dat','a+')
+      fOut.write('Eth'+str(afETh)+'\n')
+      fOut.write('EExp'+str(afEExp)+'\n')
+      fOut.write('Ediff'+str(res)+'\n')      
+      fOut.close()
     return res
     
 # Get Nushell energies
@@ -101,7 +109,8 @@ class nucleus(ShellOptFl.MEhandler):
     afETh=[]
     lsNewList=[]
     nIdx=0
-    fTh=open(self.sPath+'\\'+self.sName+"\\"+sLevName)
+    sFPath=self.sPath+'\\'+self.sName+"\\"+sLevName
+    fTh=open(sFPath)
     for line in fTh:
       line=line.strip().split()
       if bAll==False:
@@ -172,7 +181,7 @@ class nucleus(ShellOptFl.MEhandler):
 #    print afEExp
     if self.useGS==1:
       afEExp=afEExp+self.fGSE
-#      print afEExp
+#    print afEExp
 #      print self.fGSE
     if len(afEExp)!=len(self.mllspec):
       print "Error: # of Experimental levels found does not match requested # in nAZ=", self.nAZ
@@ -196,6 +205,7 @@ class nucleus(ShellOptFl.MEhandler):
     sLevName=self.getLevName()
     npaLabel=self.getLabel()
     npaOcc=self.getOcc(sLevName)
+    
     import numpy as np      
     nMonoSize=self.getMonoME().size    
     npaMono=np.zeros([npaOcc.shape[0],nMonoSize])
@@ -217,8 +227,14 @@ class nucleus(ShellOptFl.MEhandler):
           temp=float(2*(npaLabel[nIdx,4]+1))
           if npaLabel[nIdx,0]!=npaLabel[nIdx,1]:
             npaMono[nLevIdx,nMono]+=npaOcc[nLevIdx,int(npaLabel[nIdx,0]-1)]*npaOcc[nLevIdx,int(npaLabel[nIdx,1]-1)]*temp
+#            print npaLabel[nIdx,0],npaOcc[nLevIdx,int(npaLabel[nIdx,0]-1)]        
+#            print npaLabel[nIdx,2],npaOcc[nLevIdx,int(npaLabel[nIdx,2]-1)]
+#            print '\n'
           else:            
             npaMono[nLevIdx,nMono]+=npaOcc[nLevIdx,int(npaLabel[nIdx,0]-1)]*(npaOcc[nLevIdx,int(npaLabel[nIdx,1]-1)]-1.0)*temp/2.0
+#            print npaLabel[nIdx,0],npaOcc[nLevIdx,int(npaLabel[nIdx,0]-1)]        
+#            print npaLabel[nIdx,2],npaOcc[nLevIdx,int(npaLabel[nIdx,2]-1)]
+#            print '\n'
           denom[nLevIdx,nMono]+=temp
 #          print 'j*(j+1)=', temp
           nMono+=1
@@ -320,13 +336,20 @@ class nucleus(ShellOptFl.MEhandler):
         for nlevIdx,lev in enumerate(self.mllspec):
           lev=lev.strip().split()
           if int(line[3])==int(2*float(eval(lev[0]+'.0'))) and int(line[1])==int(lev[1]):
-            temp=line[5:11]
+            if self.sForm=="pn":
+              temp=line[5:5+self.countOBME()]
+            elif self.sForm=="iso":
+              temp=np.array(line[5:5+self.countOBME()],dtype=float)+np.array(line[5+self.countOBME():5+2*self.countOBME()],dtype=float)
+            else:
+              print 'Error: invalid Formalism specification:', self.sForm
             temp=[temp]
+            
             if npaOcc!=[]:              
               npaOcc=np.append(npaOcc, temp, axis=0)              
             else:
               npaOcc=temp
       fIn.close()
+
       return np.array(npaOcc,dtype=float)
 #From the occupations listed return only the ones associated with SPE on the 
 #llMESpec[0] list     
@@ -343,6 +366,7 @@ class nucleus(ShellOptFl.MEhandler):
       elif len(tempocc)==0:
         tempocc=np.array(npaOcc[:,nIdx-1])
         tempocc.shape=[tempocc.size,1]
+
     if tempocc!=[]:
       npaOcc=np.array(tempocc)
     else:

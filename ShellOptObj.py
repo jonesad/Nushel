@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 """
 Created on Wed Jan 14 14:03:24 2015
 
@@ -24,7 +25,7 @@ def CreateInFile(sInfilePath):
   #restriction
   fInFile.write('n\n')
   #interaction
-  fInFile.write('usdcpn\n')
+  fInFile.write('usdc\n')
   #formalism iso/pn
   fInFile.write('iso\n')
   #does the interaction extrapolate matrix elements
@@ -299,11 +300,9 @@ class ShellOpt:
    def IterativeLSq(self, sMethod='single', fTolin=10**-3, nMaxIter=100, bMix=True): 
      self.sMethod=sMethod
 #     fResLast=0
-
      # store the original matrix element specificaton so it can be restored 
      #after it is altered.
      llOriginalMESpec=list(self.mloNuclei[0].llMESpec)
-
 
      fResNew=100
      lRes=[100,1000, 10000, 100000]
@@ -314,7 +313,8 @@ class ShellOpt:
      if sMethod=='mono' or sMethod=='smono':
        npaMonoLabel=self.mloNuclei[0].getMonoLabel()
        for nucleus in self.mloNuclei:
-         nucleus.llMESpec=[list(range(1,7)),npaMonoLabel]
+         nucleus.llMESpec=[list(range(1,nucleus.countOBME()+1)),npaMonoLabel]
+#         print nucleus.llMESpec
          nucleus.setmanBody([1, 2])
      while abs(lRes[0]-lRes[1])>fTol and nIter<nMaxIter:
 #       fResLast=fResNew
@@ -398,7 +398,6 @@ class ShellOpt:
       
    def GetIn(self, initialize=True):
      import ShellNuclei
-     nMono=False
      fIn=open(self.sInPath,'r')
      sTempL=fIn.readline()
      llMESpec=[[],[]]
@@ -437,7 +436,7 @@ class ShellOpt:
      self.mnNuclei=int(fIn.readline().strip('\n'))
      self.mloNuclei=[]
      for nIdx in range(self.mnNuclei):
-       self.mloNuclei.append(ShellNuclei.nucleus(int(fIn.readline()),int(fIn.readline()),float(fIn.readline()),self.sOutPath,fIn.readline().strip('\n'),fIn.readline().strip('\n'),self.lsShared,llMESpec,self.useGS, initialize,self.bExtrap))
+       self.mloNuclei.append(ShellNuclei.nucleus(int(fIn.readline()),int(fIn.readline()),float(fIn.readline()),self.sOutPath,fIn.readline().strip('\n'),fIn.readline().strip('\n'),self.lsShared,llMESpec,self.useGS, self.sForm,initialize,self.bExtrap))
        llStateSpec=[]
        temp=int(fIn.readline())
        for iii in range(temp):
@@ -464,7 +463,7 @@ class ShellOpt:
          oNuc.runSM()
          #get the energy difference for the releveant particles
 #       print 'geting ediff'
-       temp=oNuc.Ediff()
+       temp=oNuc.Ediff(bTrackDiff=True)
        for elem in temp:
          res.append(elem)
 
@@ -603,16 +602,24 @@ class ShellOpt:
        else: 
          npaEExp=temp
          npaETh=tempth
-         
        temp=nucleus.getReducedOcc()
+#       print temp
        if npaSPOcc!=[]:
          npaSPOcc=numpy.append(npaSPOcc,temp,axis=0)
        else:
          npaSPOcc=numpy.array(temp)
+#     print npaMono
+
      import sys
      sys.path.append('C:\PythonScripts\generalmath')
      import MatManip
-     
+#     if self.sForm=='iso':
+#       nOBME=self.mloNuclei[0].countOBME()
+#       temp=numpy.array(npaSPOcc[:,:nOBME])
+#       print numpy.array(npaSPOcc[:,:nOBME]).shape, numpy.array(npaSPOcc[:,nOBME:]).shape,npaSPOcc.shape
+#       temp+=numpy.array(npaSPOcc[:,nOBME:])
+#       npaSPOcc=numpy.array(temp)
+#     
      SPRMList=MatManip.getZeroCols(npaSPOcc)
      MonoRMList=MatManip.getZeroCols(npaMono)
 #     print npaMono
@@ -635,7 +642,9 @@ class ShellOpt:
 #     print npaME
 #     print self.mloNuclei[0].manBody
 #     print '\n',npaEExp.shape, a.shape,npaME.shape, numpy.dot(a,npaME).shape,'\n'
+#     print npaSPOcc,npaMono
      a=numpy.append(npaSPOcc,npaMono,1)
+#     print a
      target=npaEExp-(npaETh-numpy.dot(a,npaME))
 #     print "target is ",target
      npaWeights=numpy.zeros([npaEExp.size,npaEExp.size])
@@ -958,6 +967,7 @@ sys.path.append('C:\PythonScripts\generalmath')
 x=ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in','c:\\PythonScripts\\NushellScripts\\test', 'c:\\PythonScripts\\NushellScripts\\errors.dat',initialize=True, conservative=False)
 #ans, a, target, npaME=x.monopoleLeastSq()
 #err, lME, rmList, ans=x.calcError()
+
 
 #x.addMENoise(3.0)
 

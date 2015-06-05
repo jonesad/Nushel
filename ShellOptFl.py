@@ -119,6 +119,7 @@ class MEhandler:
       nOBME=self.countOBME()
     else:
       nOBME=len(self.llMESpec[0])              
+#    print nOBME
     fIntSrc=open(self.makeIntPath(''),'r') 
     npaME=[]    
     for line in fIntSrc:
@@ -345,12 +346,12 @@ class MEhandler:
       if self.manBody[nCt]==1:
         npaOBME=npaME[:self.nMEnum[nCt]]
 #        print 'self.nMEnum[nCt]', self.nMEnum[nCt]
-        print ' npaOBME', npaOBME
+#        print ' npaOBME', npaOBME
       elif self.manBody[nCt]==2:
         npaTBME=npaME[sum(self.nMEnum[:nCt]):sum(self.nMEnum[:nCt+1])]
 #        print 'sum(self.nMEnum[:nCt])', sum(self.nMEnum[:nCt])
 #        print  'sum(self.nMEnum[:nCt+1])', sum(self.nMEnum[:nCt+1])
-        print ' npaTBME', npaTBME
+#        print ' npaTBME', npaTBME
     if len(npaOBME)>0:
       self.writeOBME(npaOBME) 
     if len(npaTBME)>0:
