@@ -9,7 +9,7 @@ Self contained utility classes for Shell Opt
 
 class MEhandler:
   'Takes lists of ME Types and the and list of lists of ME to be used in methods that read and write them. The nucleus class inherits from here.'
-  def __init__(self, anBody, sPath, sName, sInt, llMESpec=[[],[]], bExtrap=True):
+  def __init__(self, anBody, sPath, sName, sInt, sForm, llMESpec=[[],[]], bExtrap=True):
     #assign matrix element type specification    
     self.setmanBody(anBody)    
     #assign the list of ME specifications (tells shich ME to change
@@ -26,6 +26,7 @@ class MEhandler:
     self.bExtrap=bExtrap
     #initialize the single particle matrix elements
     self.llMESpec[0]=range(1,self.countOBME()+1)    
+    self.sForm=sForm
     
 #set manBody outside of initialization
   def setmanBody(self, anBody):

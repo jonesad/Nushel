@@ -25,9 +25,9 @@ def CreateInFile(sInfilePath):
   #restriction
   fInFile.write('n\n')
   #interaction
-  fInFile.write('usdc\n')
+  fInFile.write('usdcpn\n')
   #formalism iso/pn
-  fInFile.write('iso\n')
+  fInFile.write('pn\n')
   #does the interaction extrapolate matrix elements
   fInFile.write('False\n')
   
@@ -458,6 +458,15 @@ class ShellOpt:
 #       print 'Setting ME:',npaME
        if self.init==True:
          oNuc.takeME(npaME)
+         if self.sForm=='pn':
+           import os
+           sLevName=oNuc.getLevName()
+           temp=str(oNuc.sPath)+'\\'+str(oNuc.sName)+'\\'+sLevName[:-5]+'0'+'.int'      
+           if os.path.isfile(temp+'_'):            
+             os.remove(temp+'_')
+           os.rename(temp, temp+'_') 
+#           raw_input("Press Enter to continue...")
+           
          #run Shell model calc
 #       print 'running calculation...'
          oNuc.runSM()

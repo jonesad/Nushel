@@ -210,8 +210,6 @@ class nucleus(ShellOptFl.MEhandler):
     nMonoSize=self.getMonoME().size    
     npaMono=np.zeros([npaOcc.shape[0],nMonoSize])
     npaMonoLabel=self.getMonoLabel()
-#    print npaOcc.shape[0], nMonoSize
-
     denom=np.zeros(npaMono.shape)
     for nLevIdx in range(npaMono.shape[0]):    
       nMono=0
@@ -225,13 +223,17 @@ class nucleus(ShellOptFl.MEhandler):
 #        if npaLabel[nIdx,1]==npaLabel[nIdx,3] and npaLabel[nIdx,0]==npaLabel[nIdx,2] and npaLabel[nIdx,4]!=0:
         if np.all(npaLabel[nIdx]==npaMonoLabel[nMono]):
           temp=float(2*(npaLabel[nIdx,4]+1))
+          if self.sForm =='pn':
+            nSPEIdx=int(npaLabel[nIdx,0])-1
+          elif self.sForm =='iso':
+            nSPEIdx=int(npaLabel[nIdx,0])-1+npaLabel[nIdx,-1]*self.countOBME()
           if npaLabel[nIdx,0]!=npaLabel[nIdx,1]:
-            npaMono[nLevIdx,nMono]+=npaOcc[nLevIdx,int(npaLabel[nIdx,0]-1)]*npaOcc[nLevIdx,int(npaLabel[nIdx,1]-1)]*temp
+            npaMono[nLevIdx,nMono]+=npaOcc[nLevIdx,nSPEIdx]*npaOcc[nLevIdx,nSPEIdx]*temp
 #            print npaLabel[nIdx,0],npaOcc[nLevIdx,int(npaLabel[nIdx,0]-1)]        
 #            print npaLabel[nIdx,2],npaOcc[nLevIdx,int(npaLabel[nIdx,2]-1)]
 #            print '\n'
           else:            
-            npaMono[nLevIdx,nMono]+=npaOcc[nLevIdx,int(npaLabel[nIdx,0]-1)]*(npaOcc[nLevIdx,int(npaLabel[nIdx,1]-1)]-1.0)*temp/2.0
+            npaMono[nLevIdx,nMono]+=npaOcc[nLevIdx,nSPEIdx]*(npaOcc[nLevIdx,nSPEIdx]-1.0)*temp/2.0
 #            print npaLabel[nIdx,0],npaOcc[nLevIdx,int(npaLabel[nIdx,0]-1)]        
 #            print npaLabel[nIdx,2],npaOcc[nLevIdx,int(npaLabel[nIdx,2]-1)]
 #            print '\n'
@@ -339,7 +341,7 @@ class nucleus(ShellOptFl.MEhandler):
             if self.sForm=="pn":
               temp=line[5:5+self.countOBME()]
             elif self.sForm=="iso":
-              temp=np.array(line[5:5+self.countOBME()],dtype=float)+np.array(line[5+self.countOBME():5+2*self.countOBME()],dtype=float)
+              temp=np.array(line[5:5+2*self.countOBME()],dtype=float)
             else:
               print 'Error: invalid Formalism specification:', self.sForm
             temp=[temp]
@@ -349,7 +351,7 @@ class nucleus(ShellOptFl.MEhandler):
             else:
               npaOcc=temp
       fIn.close()
-
+      
       return np.array(npaOcc,dtype=float)
 #From the occupations listed return only the ones associated with SPE on the 
 #llMESpec[0] list     
