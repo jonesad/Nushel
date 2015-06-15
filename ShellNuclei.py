@@ -242,6 +242,8 @@ class nucleus(ShellOptFl.MEhandler):
           nMono+=1
           if nMono>=npaMonoLabel.shape[0]:
             break
+#    print denom
+#    raw_input("Press enter to continue...")
     npaMono=np.divide(npaMono,denom)
 #    print npaMono.max()
 #    print npaMono

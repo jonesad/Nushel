@@ -21,7 +21,7 @@ def CreateInFile(sInfilePath):
 #  fInFile.write('TBME\n')
 
   #model space specification
-  fInFile.write('sd\n')
+  fInFile.write('sdpn\n')
   #restriction
   fInFile.write('n\n')
   #interaction
@@ -287,15 +287,51 @@ class ShellOpt:
          npaETh=list(tempth)
          
      fOut=open(path+'Levels.dat','w')
+     sHFormat='{:10}{:5}{:5}{:5}{:10}{:10}'
+     fOut.write(sHFormat.format('[A,Z]','J','nJ','P', 'Eexp', 'Einit'))
      sFormat='{:10}{:5}{:5}{:5}{:10.4f}{:10.4f}'
 #     print lAZ, lLS, npaEExp.shape, npaETh.shape
      for AZ,LS,Exp,Th in zip(lAZ, lLS,npaEExp,npaETh):
        temp=LS.strip().split()
        fOut.write(sFormat.format(AZ,temp[0],temp[1],temp[2],Exp,Th)+'\n')
-       
+     fOut.close()
+
+#Update the levels with their final values
+   def updateLevs(self, path):
+     npaETh=[]
+     lLS=[]
+     lAZ=[]
+     for nucleus in self.mloNuclei:
+       import numpy
+       tempth=list(nucleus.getEnNu())
+       lLS.extend(nucleus.mllspec)
+       lAZ.extend([nucleus.nAZ]*len(nucleus.mllspec))
+       if npaETh!=[]:
+         npaETh=numpy.append(npaETh,tempth,axis=0)
+       else: 
+         npaETh=list(tempth)
+     import os
+     if not os.path.isfile(path+'Levels_.dat'):
+       os.rename(path+'Levels.dat',path+'Levels_.dat')
+     fIn=open(path+'Levels_.dat','r')
+     fOut=open(path+'Levels.dat','w')
+     sHFormat='{:10}{:5}{:5}{:5}{:10}{:10}{:10}\n'
+     temp=fIn.readline().strip().split()
+     temp.append('Efinal')
+     fOut.write(sHFormat.format(*temp))
+     sFormat='{:10}{:5}{:5}{:5}{:10}{:10}{:10}\n'
+     nIdx=0
+     for line in fIn:
+       temp=line.strip().split()
+       temp.append(npaETh[nIdx])
+       fOut.write(sFormat.format(*temp))
+       nIdx+=1
+     fIn.close()
+     fOut.close()
+     os.remove(path+'Levels_.dat')
+            
    def testMERW(self):
-     self.mloNuclei[0].takeME([1,2,3])
-       
+     self.mloNuclei[0].takeME([1,2,3])       
    
    def IterativeLSq(self, sMethod='single', fTolin=10**-3, nMaxIter=100, bMix=True): 
      self.sMethod=sMethod
@@ -353,6 +389,7 @@ class ShellOpt:
            npaGuess=num*npaGuess +(1.-num)*lME[1]         
          
        fResNew=self.obj(npaGuess)
+#       raw_input("Press Enter to continue...")
        lRes[0]=fResNew
        lME[0]=npaGuess
        nIter+=1
@@ -388,6 +425,7 @@ class ShellOpt:
        print 'Completed Successfully'
      else:
        print 'Iteration max reached: ', nIter       
+     self.updateLevs(self.sOutPath+'\\'+'tracking\\')
      return fResNew
    
    def performOptimization(self, sMethod='Nelder-Mead', dOptions=None):
@@ -395,6 +433,7 @@ class ShellOpt:
       from scipy.optimize import minimize
       res = minimize(self.obj, npaGuess, method=sMethod, options=dOptions)
       print res
+      self.updateLevs(self.sOutPath+'\\'+'tracking\\')
       
    def GetIn(self, initialize=True):
      import ShellNuclei
@@ -465,8 +504,8 @@ class ShellOpt:
            if os.path.isfile(temp+'_'):            
              os.remove(temp+'_')
            os.rename(temp, temp+'_') 
-#           raw_input("Press Enter to continue...")
            
+#           raw_input("Press Enter to continue...")
          #run Shell model calc
 #       print 'running calculation...'
          oNuc.runSM()
@@ -636,23 +675,23 @@ class ShellOpt:
        npaSPOcc=MatManip.rmSlice(SPRMList,npaSPOcc, 1)
        npaMono=MatManip.rmSlice(MonoRMList,npaMono, 1)
        for nucleus in self.mloNuclei:
-
 #         print nucleus.llMESpec[0]
-         nucleus.llMESpec[0]=list(MatManip.rmSlice(SPRMList,numpy.array(nucleus.llMESpec[0]),0))
+#         nucleus.llMESpec[0]=list(MatManip.rmSlice(SPRMList,numpy.array(nucleus.llMESpec[0]),0))
+          nucleus.llMESpec[0]=[]
 #         print nucleus.llMESpec[0]
-
 #         print nucleus.llMESpec[1] 
-         nucleus.llMESpec[1]=MatManip.rmSlice(MonoRMList,nucleus.llMESpec[1],0)
+          nucleus.llMESpec[1]=MatManip.rmSlice(MonoRMList,nucleus.llMESpec[1],0)
 #         print nucleus.llMESpec[1] 
-                  
-         nucleus.setMEnum()
+          nucleus.setMEnum()
      
      npaME=self.mloNuclei[0].getME()
-#     print npaME
+     print npaME
 #     print self.mloNuclei[0].manBody
 #     print '\n',npaEExp.shape, a.shape,npaME.shape, numpy.dot(a,npaME).shape,'\n'
 #     print npaSPOcc,npaMono
-     a=numpy.append(npaSPOcc,npaMono,1)
+#     a=numpy.append(npaSPOcc,npaMono,1)
+     a=npaMono
+
 #     print a
      target=npaEExp-(npaETh-numpy.dot(a,npaME))
 #     print "target is ",target
@@ -703,14 +742,11 @@ class ShellOpt:
 #     temp=self.getBadCol(a)
 #     rmList.extend(temp)
 #     rmList=sorted(list(set(rmList)))
-     
      if rmList!=[]:
        a=MatManip.rmSlice(rmList, a, 1)
-       
        lLabSpec=self.constructML(rmList,npaNewLabels)
        lsOBLab=[]
        npaTBLab=[]
-       
        for elem in lLabSpec:
          if len (elem)==1:
            lsOBLab.append(elem[0])
@@ -740,10 +776,7 @@ class ShellOpt:
      ans, temp=self.mloNuclei[0].addDiff(diff, npaTBLab)
      for nucleus in self.mloNuclei:
       nucleus.llMESpec[1]=temp
-      
      return ans, a, target, npaME
-
-
 
 #quickly set manbody variable 
    def initmanbody(self):
@@ -991,4 +1024,4 @@ print x.IterativeLSq(sMethod='mono',bMix=False, nMaxIter=100, fTolin=10**-5)
 #nStop=8
 #x.mloNuclei[1].plotEthError(lHist[:nStop], lBins[:nStop], lMu[:nStop], lSigma[:nStop], nSize)
 
-#x.plotResults(sMethod='mono', bError=False)
+#x.plotResults(sMethod='mono', bError=True)

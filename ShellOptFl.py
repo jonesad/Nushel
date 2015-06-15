@@ -57,10 +57,11 @@ class MEhandler:
       if len(self.llMESpec[nIdx])!=0:
         self.nMEnum.append(len(self.llMESpec[nIdx]))
       elif len(self.llMESpec[nIdx])==0 and elem==1:
-        self.nMEnum.append(self.countOBME())
+#        self.nMEnum.append(self.countOBME())
+        self.nMEnum.append(0)
       elif len(self.llMESpec[nIdx])==0 and elem==2:
-        self.nMEnum.append(self.countTBME())
-            
+#        self.nMEnum.append(self.countTBME())
+        self.nMEnum.append(0)            
 # make the path of the interaction file   
   def makeIntPath(self, sPreExt='', nExtrap=0):
     if nExtrap==0:
