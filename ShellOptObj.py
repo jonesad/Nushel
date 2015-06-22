@@ -319,7 +319,7 @@ class ShellOpt:
      temp=fIn.readline().strip().split()
      temp.append('Efinal')
      fOut.write(sHFormat.format(*temp))
-     sFormat='{:10}{:5}{:5}{:5}{:10}{:10}{:10}\n'
+     sFormat='{:5}{:5}{:5}{:5}{:5}{:10}{:10}{:10}\n'
      nIdx=0
      for line in fIn:
        temp=line.strip().split()
@@ -638,8 +638,9 @@ class ShellOpt:
      npaETh=[]
      for nucleus in self.mloNuclei:
        temp=nucleus.calcMonoOcc()
+#       print temp
        if npaMono!=[]:
-         npaMono=numpy.append(npaMono,temp,axis=0)
+         npaMono=numpy.append(npaMono,numpy.array(temp),axis=0)
        else:
          npaMono=numpy.array(temp)
        temp=numpy.array(nucleus.getEExp(),dtype=float)
@@ -661,34 +662,21 @@ class ShellOpt:
      import sys
      sys.path.append('C:\PythonScripts\generalmath')
      import MatManip
-#     if self.sForm=='iso':
-#       nOBME=self.mloNuclei[0].countOBME()
-#       temp=numpy.array(npaSPOcc[:,:nOBME])
-#       print numpy.array(npaSPOcc[:,:nOBME]).shape, numpy.array(npaSPOcc[:,nOBME:]).shape,npaSPOcc.shape
-#       temp+=numpy.array(npaSPOcc[:,nOBME:])
-#       npaSPOcc=numpy.array(temp)
-#     
+
      SPRMList=MatManip.getZeroCols(npaSPOcc)
      MonoRMList=MatManip.getZeroCols(npaMono)
-#     print npaMono
+
      if SPRMList!=[]:
        npaSPOcc=MatManip.rmSlice(SPRMList,npaSPOcc, 1)
-       npaMono=MatManip.rmSlice(MonoRMList,npaMono, 1)
+       npaMono=MatManip.rmSlice(MonoRMList,npaMono, 1)  
+       origTBME=numpy.array(self.mloNuclei[0].llMESpec[1])
+       newTBME=numpy.array(MatManip.rmSlice(MonoRMList,origTBME,0))
        for nucleus in self.mloNuclei:
-#         print nucleus.llMESpec[0]
-#         nucleus.llMESpec[0]=list(MatManip.rmSlice(SPRMList,numpy.array(nucleus.llMESpec[0]),0))
           nucleus.llMESpec[0]=[]
-#         print nucleus.llMESpec[0]
-#         print nucleus.llMESpec[1] 
-          nucleus.llMESpec[1]=MatManip.rmSlice(MonoRMList,nucleus.llMESpec[1],0)
-#         print nucleus.llMESpec[1] 
+          nucleus.llMESpec[1]=newTBME
           nucleus.setMEnum()
      
      npaME=self.mloNuclei[0].getME()
-     print npaME
-#     print self.mloNuclei[0].manBody
-#     print '\n',npaEExp.shape, a.shape,npaME.shape, numpy.dot(a,npaME).shape,'\n'
-#     print npaSPOcc,npaMono
 #     a=numpy.append(npaSPOcc,npaMono,1)
      a=npaMono
 
@@ -699,8 +687,8 @@ class ShellOpt:
      for nIdx, elem in enumerate(self.npaErrors):
 #       print elem
        npaWeights[nIdx,nIdx]=1.0/(elem**2)
-#     ans=numpy.linalg.lstsq(numpy.dot(npaWeights, a), numpy.dot(npaWeights, target))
-     ans=numpy.linalg.lstsq(a, target)
+     ans=numpy.linalg.lstsq(numpy.dot(npaWeights, a), numpy.dot(npaWeights, target))
+#     ans=numpy.linalg.lstsq(a, target)
      ans=ans[0]
 
      return ans, a, target, npaME
@@ -831,6 +819,8 @@ class ShellOpt:
      self.sMethod=sMethod
      self.initmanbody()
      lMEoriginal=list(self.mloNuclei[0].llMESpec)
+#     print lMEoriginal
+#     raw_input('press enter1...')
      fResIn=open(self.sOutPath+'\\'+'tracking'+'\\res.dat','r')       
      npaRes=[]
      for line in fResIn:
@@ -868,7 +858,7 @@ class ShellOpt:
 #     re initialize the list llmespec
      for nucleus in self.mloNuclei:
        nucleus.llMESpec=list(lMEoriginal)
-
+     
 #     print lLabSpec
      for elem in lLabSpec: 
        print str(type(elem))
@@ -904,10 +894,17 @@ class ShellOpt:
          x=[0,int(npaME.shape[0])-1]
          y1=[lME[nColIdx]+npaErr[nColIdx]]*2
 #         print 'y1',y1
-         y1=list(chain(*y1))         
+         try:
+           y1=list(chain(*y1))
+         except:
+           ''
+#           print 'y1 not iterable'
          y2=[lME[nColIdx]-npaErr[nColIdx]]*2
-         
-         y2=list(chain(*y2))
+         try:
+           y2=list(chain(*y2))
+         except:
+           ''
+#           print 'y2 not iterable'
 #         print y1, y2
          ax[nColIdx].fill_between(x, y1,y2, alpha=0.5, label='Error Band')
 #     ax[1].title='ME by Iteration Number'
@@ -1006,14 +1003,13 @@ import sys
 sys.path.append('c:\\PythonScripts\\NushellScripts\\')
 sys.path.append('C:\PythonScripts\generalmath')
 
-x=ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in','c:\\PythonScripts\\NushellScripts\\test', 'c:\\PythonScripts\\NushellScripts\\errors.dat',initialize=True, conservative=False)
-#ans, a, target, npaME=x.monopoleLeastSq()
-#err, lME, rmList, ans=x.calcError()
+x=ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in','c:\\PythonScripts\\NushellScripts\\test', 'c:\\PythonScripts\\NushellScripts\\errors.dat',initialize=False, conservative=False)
 
 
 #x.addMENoise(3.0)
 
-print x.IterativeLSq(sMethod='mono',bMix=False, nMaxIter=100, fTolin=10**-5)
+#print x.IterativeLSq(sMethod='mono',bMix=False, nMaxIter=20, fTolin=10**-5)
+
 #x.performOptimization()
 #x.sMethod='single'
 #err=x.calcError()[0]
@@ -1024,4 +1020,4 @@ print x.IterativeLSq(sMethod='mono',bMix=False, nMaxIter=100, fTolin=10**-5)
 #nStop=8
 #x.mloNuclei[1].plotEthError(lHist[:nStop], lBins[:nStop], lMu[:nStop], lSigma[:nStop], nSize)
 
-#x.plotResults(sMethod='mono', bError=True)
+x.plotResults(sMethod='mono', bError=True)

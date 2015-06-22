@@ -30,6 +30,7 @@ class MEhandler:
     
 #set manBody outside of initialization
   def setmanBody(self, anBody):
+    import numpy as np
     try:
       test=[3]*len(anBody)
     except TypeError:
@@ -38,13 +39,13 @@ class MEhandler:
     try:
       if any(anBody == test):
         self.manBody=[1,2]
-        self.llMESpec[1]=self.getMonoLabel()
+        self.llMESpec[1]=np.array(self.getMonoLabel())
       else:
         self.manBody=anBody
     except TypeError:
       if anBody == test:
         self.manBody=[1,2]
-        self.llMESpec[1]=self.getMonoLabel()  
+        self.llMESpec[1]=np.array(self.getMonoLabel())  
       else:
         self.manBody=anBody
     self.setMEnum()
