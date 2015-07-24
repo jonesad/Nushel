@@ -63,7 +63,7 @@ class nucleus(ShellOptFl.MEhandler):
     fOut.close()
     sLevName=self.getLevName()
     string=''
-    fOut=open(self.sPath+'\\'+self.sName+'\\'+'tracking'+'\\occupation.dat','a+')    
+    fOut=open(self.sPath+'\\'+self.sName+'\\'+'tracking'+'\\occupation.dat','a+')
     for occ in self.getOcc(sLevName):
       string=string+str(occ)+'\t'   
     fOut.write(string+'\n')
@@ -211,6 +211,7 @@ class nucleus(ShellOptFl.MEhandler):
     npaMono=np.zeros([npaOcc.shape[0],nMonoSize])
     npaMonoLabel=self.getMonoLabel()
     denom=np.zeros(npaMono.shape)
+    jmax=0
     for nLevIdx in range(npaMono.shape[0]):    
       nMono=0
       for nIdx in range(npaLabel.shape[0]):        
@@ -223,6 +224,9 @@ class nucleus(ShellOptFl.MEhandler):
 #        if npaLabel[nIdx,1]==npaLabel[nIdx,3] and npaLabel[nIdx,0]==npaLabel[nIdx,2] and npaLabel[nIdx,4]!=0:
         if np.all(npaLabel[nIdx]==npaMonoLabel[nMono]):
           temp=float(2*(npaLabel[nIdx,4]+1))
+#          test to see what the largest angular momentum is
+          if float(npaLabel[nIdx,4])>jmax:
+            jmax=float(npaLabel[nIdx,4])
           if self.sForm =='pn':
             nSPEIdx=int(npaLabel[nIdx,0])-1
           elif self.sForm =='iso':
@@ -245,6 +249,14 @@ class nucleus(ShellOptFl.MEhandler):
 #    print denom
 #    raw_input("Press enter to continue...")
     npaMono=np.divide(npaMono,denom)
+#    jsum=0
+#    for num in range(int(jmax)+ 1):
+#      jsum+=2*num+1
+#    npaMono=np.divide(npaMono,jsum)
+#    print 'max',jmax
+#    print 'sum',jsum
+#    raw_input("Press enter to continue...")
+            
 #    print npaMono.max()
 #    print npaMono
     return npaMono    

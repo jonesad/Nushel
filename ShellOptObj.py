@@ -235,7 +235,7 @@ def CreateInFile(sInfilePath):
 
 
 #code to create an input file
-CreateInFile('C:/PythonScripts/NushellScripts/OptInput.in')
+#CreateInFile('C:/PythonScripts/NushellScripts/OptInput.in')
 
 class ShellOpt:
    'Class for shell model hamiltonian optimization problems'
@@ -250,6 +250,7 @@ class ShellOpt:
       self.sOutPath = sOutPath
       #get info from input file and initializes the nuclei objects
       self.GetIn(initialize)
+      self.dFitInfo={'type': None, 'tolerance': None, 'iterations': None, 'iteration max': None,'duration':None}
       import os
       if not os.path.exists(self.sOutPath+'\\'+'tracking'):
         os.makedirs(self.sOutPath+'\\'+'tracking')
@@ -287,7 +288,7 @@ class ShellOpt:
          npaETh=list(tempth)
          
      fOut=open(path+'Levels.dat','w')
-     sHFormat='{:10}{:5}{:5}{:5}{:10}{:10}'
+     sHFormat='{:10}{:5}{:5}{:5}{:>10}{:>10}\n'
      fOut.write(sHFormat.format('[A,Z]','J','nJ','P', 'Eexp', 'Einit'))
      sFormat='{:10}{:5}{:5}{:5}{:10.4f}{:10.4f}'
 #     print lAZ, lLS, npaEExp.shape, npaETh.shape
@@ -315,29 +316,30 @@ class ShellOpt:
        os.rename(path+'Levels.dat',path+'Levels_.dat')
      fIn=open(path+'Levels_.dat','r')
      fOut=open(path+'Levels.dat','w')
-     sHFormat='{:10}{:5}{:5}{:5}{:10}{:10}{:10}\n'
+     sHFormat='{:10}{:5}{:5}{:5}{:>10}{:>10}{:>10}\n'
      temp=fIn.readline().strip().split()
      temp.append('Efinal')
      fOut.write(sHFormat.format(*temp))
-     sFormat='{:5}{:5}{:5}{:5}{:5}{:10}{:10}{:10}\n'
+     sFormat='{:5}{:5}{:5}{:5}{:5}{:>10}{:>10}{:>10}\n'
      nIdx=0
      for line in fIn:
-       temp=line.strip().split()
-       temp.append(npaETh[nIdx])
-       fOut.write(sFormat.format(*temp))
+       if nIdx >-1:
+         temp=line.strip().split()
+         temp.append(npaETh[nIdx])
+         fOut.write(sFormat.format(*temp))
        nIdx+=1
      fIn.close()
      fOut.close()
      os.remove(path+'Levels_.dat')
-            
-   def testMERW(self):
-     self.mloNuclei[0].takeME([1,2,3])       
-   
-   def IterativeLSq(self, sMethod='single', fTolin=10**-3, nMaxIter=100, bMix=True): 
+               
+   def IterativeLSq(self, sMethod='single', fTolin=10**-3, nMaxIter=100, bMix=False): 
+#     start timing the optimization
+     import time
+     start=time.clock()       
      self.sMethod=sMethod
 #     fResLast=0
      # store the original matrix element specificaton so it can be restored 
-     #after it is altered.
+     #after it is altered.  
      llOriginalMESpec=list(self.mloNuclei[0].llMESpec)
 
      fResNew=100
@@ -346,14 +348,12 @@ class ShellOpt:
      fTol=fTolin/float(len(self.mloNuclei[0].mllspec))
      lME=[[],[],[],[]]
      
-     if sMethod=='mono' or sMethod=='smono':
+     if sMethod=='mono' :
        npaMonoLabel=self.mloNuclei[0].getMonoLabel()
        for nucleus in self.mloNuclei:
          nucleus.llMESpec=[list(range(1,nucleus.countOBME()+1)),npaMonoLabel]
-#         print nucleus.llMESpec
          nucleus.setmanBody([1, 2])
      while abs(lRes[0]-lRes[1])>fTol and nIter<nMaxIter:
-#       fResLast=fResNew
        for nIdx in range(3):
         lRes[len(lRes)-(nIdx+1)]=lRes[len(lRes)-(nIdx+2)]
         lME[len(lRes)-(nIdx+1)]=lME[len(lRes)-(nIdx+2)]
@@ -364,32 +364,11 @@ class ShellOpt:
          temp=self.monopoleLeastSq()
          npaGuess=temp[0]
        elif sMethod=='smono':
-         temp=self.summedMLS()
+         temp=self.sMono()
          npaGuess=temp[0]
-                 
-       import numpy
 
-# test to see if the linear optimization step is too big 
        print "The guess is",npaGuess
-       comp1=numpy.linalg.norm(self.mloNuclei[0].getME())/float(self.mloNuclei[0].getME().size)
-       comp2=numpy.linalg.norm(npaGuess)/float(npaGuess.size)
-#       print comp1, comp2
-       if comp1<comp2 and self.conservative==True:
-         num=0.5*comp1/comp2
-#         print num
-#         print npaGuess
-         npaGuess=num*npaGuess + (1-num)*self.mloNuclei[0].getME()
-#         print npaGuess
-       if bMix:
-         if lME[1]!=[]and lME[2]!=[] and numpy.all(lME[1].shape==npaGuess.shape) and numpy.all(lME[2].shape==npaGuess.shape):
-           num=numpy.random.rand()*0.25 + 0.25
-           npaGuess=0.5*npaGuess +num*lME[1]+(0.5-num)*lME[2]          
-         elif lME[1]!=[] and numpy.all(lME[1].shape==npaGuess.shape):
-           num=numpy.random.rand()*.5 + 0.5
-           npaGuess=num*npaGuess +(1.-num)*lME[1]         
-         
        fResNew=self.obj(npaGuess)
-#       raw_input("Press Enter to continue...")
        lRes[0]=fResNew
        lME[0]=npaGuess
        nIter+=1
@@ -397,43 +376,73 @@ class ShellOpt:
        #restore the original MESpec 
        for nucleus in self.mloNuclei:    
          nucleus.llMESpec=list(llOriginalMESpec)
-
-#       print lRes
        print lME
        print fResNew
-       #chek for oscilating convergence and average the ME of oscilations if found 
-#       if abs(lRes[0]-lRes[2])<10*fTol and abs(lRes[0]-lRes[1])>10*fTol:
-#         npaGuess=(lME[0]+lME[1])*0.5
-#         fResNew=self.obj(npaGuess)
-#         lRes[0]=fResNew
-#         lME[0]=npaGuess
-#       
-#       elif abs(lRes[0]-lRes[3])<10*fTol:
-#         if abs(lRes[0]-lRes[1])>10*fTol:
-#           npaGuess=(lME[0]+lME[1])*0.5
-#           fResNew=self.obj(npaGuess)
-#           lRes[0]=fResNew
-#           lME[0]=npaGuess
-#       
-#         elif abs(lRes[0]-lRes[2])>10*fTol:
-#           npaGuess=(lME[0]+lME[2])*0.5
-#           fResNew=self.obj(npaGuess)
-#           lRes[0]=fResNew
-#           lME[0]=npaGuess      
-                 
      if abs(lRes[0]-lRes[1])<fTol:
        print 'Completed Successfully'
      else:
-       print 'Iteration max reached: ', nIter       
+       print 'Iteration max reached: ', nIter
+     end= time.clock()
      self.updateLevs(self.sOutPath+'\\'+'tracking\\')
+     self.dFitInfo['type']=self.sMethod
+     self.dFitInfo['tolerance']=fTol
+     self.dFitInfo['iterations']=nIter
+     self.dFitInfo['iteration max']=nMaxIter
+     self.dFitInfo['duration']=end-start     
      return fResNew
    
    def performOptimization(self, sMethod='Nelder-Mead', dOptions=None):
-      npaGuess=self.mloNuclei[0].getME()
-      from scipy.optimize import minimize
-      res = minimize(self.obj, npaGuess, method=sMethod, options=dOptions)
-      print res
-      self.updateLevs(self.sOutPath+'\\'+'tracking\\')
+#Take the monopole matrix element only     
+     import numpy
+     npaMono=[]
+     npaSPOcc=[]
+     npaEExp=[]
+     npaETh=[]
+     for nucleus in self.mloNuclei:
+       temp=nucleus.calcMonoOcc()
+#       print temp
+       if npaMono!=[]:
+         npaMono=numpy.append(npaMono,numpy.array(temp),axis=0)
+       else:
+         npaMono=numpy.array(temp)
+       temp=numpy.array(nucleus.getEExp(),dtype=float)
+       tempth=nucleus.getEnNu()
+       if npaEExp!=[]:
+         npaEExp=numpy.append(npaEExp,temp,axis=0)
+         npaETh=numpy.append(npaETh,tempth,axis=0)
+       else: 
+         npaEExp=temp
+         npaETh=tempth
+       temp=nucleus.getReducedOcc()
+#       print temp
+       if npaSPOcc!=[]:
+         npaSPOcc=numpy.append(npaSPOcc,temp,axis=0)
+       else:
+         npaSPOcc=numpy.array(temp)
+#     print npaMono
+
+     import sys
+     sys.path.append('C:\PythonScripts\generalmath')
+     import MatManip
+
+     SPRMList=MatManip.getZeroCols(npaSPOcc)
+     MonoRMList=MatManip.getZeroCols(npaMono)
+
+     if SPRMList!=[]:
+       npaSPOcc=MatManip.rmSlice(SPRMList,npaSPOcc, 1)
+       npaMono=MatManip.rmSlice(MonoRMList,npaMono, 1)  
+       origTBME=numpy.array(self.mloNuclei[0].llMESpec[1])
+       newTBME=numpy.array(MatManip.rmSlice(MonoRMList,origTBME,0))
+       for nucleus in self.mloNuclei:
+          nucleus.llMESpec[0]=[]
+          nucleus.llMESpec[1]=newTBME
+          nucleus.setMEnum()
+          
+     npaGuess=self.mloNuclei[0].getME()
+     from scipy.optimize import minimize
+     res = minimize(self.obj, npaGuess, method=sMethod, options=dOptions)
+     print res
+     self.updateLevs(self.sOutPath+'\\'+'tracking\\')
       
    def GetIn(self, initialize=True):
      import ShellNuclei
@@ -525,6 +534,7 @@ class ShellOpt:
      return temp   
  #
    def OptStatus(self,res, npaME):
+       import os
        fOut=open(self.sOutPath+'\\'+'tracking'+'\\res.dat','a+')
        fOut.write(str(res)+'\n')
        fOut.close()
@@ -576,7 +586,7 @@ class ShellOpt:
      import sys
      sys.path.append('C:\PythonScripts\generalmath')
      import MatManip
-#get the sero cols of the matrix
+#get the zero cols of the matrix
      rmList=MatManip.getZeroCols(a)
 #add to rmList the cols for poorly determined ME
 #     temp=self.getBadCol(a)
@@ -620,15 +630,29 @@ class ShellOpt:
 #       print elem
        npaWeights[nIdx,nIdx]=1.0/(elem**2)
 
-     a=numpy.dot(npaWeights, a)
-     target=numpy.dot(npaWeights, target)
-
+      #adjust for weighted least squares
+#     a=numpy.dot(npaWeights, a)
+#     target=numpy.dot(npaWeights, target)
+      #end adjust for weighted least squares
      ans=numpy.linalg.lstsq(a, target)
      ans=ans[0]
      
      return ans, a, target, obme
-         
-         
+#returns list of non super diagonal matrix elements
+#     used to test convergence of iterative scheme when there is little data
+   def getNonSuDi(self):
+     ans= [row for row in self.mloNuclei[0].llMESpec[1] if not(row[0]==row[1] and row[0]==row[2] and row[0]==row[3])]
+#     print 'the non sudi are',ans
+#     print 'the sudi are', [row for row in self.mloNuclei[0].llMESpec[1] if row[0]==row[1] and row[0]==row[2] and row[0]==row[3]]
+#     raw_input("press eneter")
+     nonsudi=[]
+     for elem1 in ans:
+       for iii,elem2 in zip(range(len(self.mloNuclei[0].llMESpec[1])),self.mloNuclei[0].llMESpec[1]):
+         if all(elem1==elem2):
+           nonsudi.append(iii)    
+     
+     return nonsudi
+     
 #returns the single particle energy + monopole lest square solution to the energy
    def monopoleLeastSq(self):
      import numpy
@@ -665,6 +689,14 @@ class ShellOpt:
 
      SPRMList=MatManip.getZeroCols(npaSPOcc)
      MonoRMList=MatManip.getZeroCols(npaMono)
+#     to test the iterative scheme for small data sets
+     MonoRMList.extend(self.getNonSuDi())
+     MonoRMList=list(set(MonoRMList))
+#    cut down even more
+     temp=range(max(MonoRMList))
+     new=[iii for iii in temp if iii not in MonoRMList]
+     MonoRMList.extend(new[-3:])
+     MonoRMList=list(set(MonoRMList))
 
      if SPRMList!=[]:
        npaSPOcc=MatManip.rmSlice(SPRMList,npaSPOcc, 1)
@@ -683,88 +715,16 @@ class ShellOpt:
 #     print a
      target=npaEExp-(npaETh-numpy.dot(a,npaME))
 #     print "target is ",target
-     npaWeights=numpy.zeros([npaEExp.size,npaEExp.size])
-     for nIdx, elem in enumerate(self.npaErrors):
+#     npaWeights=numpy.zeros([npaEExp.size,npaEExp.size])
+#     for nIdx, elem in enumerate(self.npaErrors):
 #       print elem
-       npaWeights[nIdx,nIdx]=1.0/(elem**2)
-     ans=numpy.linalg.lstsq(numpy.dot(npaWeights, a), numpy.dot(npaWeights, target))
-#     ans=numpy.linalg.lstsq(a, target)
+#       npaWeights[nIdx,nIdx]=1.0/(elem**2)
+#     ans=numpy.linalg.lstsq(numpy.dot(npaWeights, a), numpy.dot(npaWeights, target))
+     ans=numpy.linalg.lstsq(a, target)
      ans=ans[0]
 
      return ans, a, target, npaME
  
-#returns the single particle energy + monopole lest square solution to the energy
-   def summedMLS(self):
-     import numpy
-     a=[]
-     npaEExp=[]
-     npaETh=[]
-     for nucleus in self.mloNuclei:
-       temp=nucleus.summedMO()
-       npaNewLabels=temp[1]
-#       print temp.shape
-       if a!=[]:
-         a=numpy.append(a,temp[0],axis=0)
-       else:
-         a=numpy.array(temp[0])
-       temp=numpy.array(nucleus.getEExp(),dtype=float)
-       tempth=nucleus.getEnNu()
-       if npaEExp!=[]:
-         npaEExp=numpy.append(npaEExp,temp,axis=0)
-         npaETh=numpy.append(npaETh,tempth,axis=0)
-       else: 
-         npaEExp=temp
-         npaETh=tempth
-          
-#     print npaETh
-#     print numpy.dot(a,npaME)
-#     print a.shape
-#     print npaME.shape
-#     remove zero columns of the matrix and the associated matrix elements
-     import sys
-     sys.path.append('C:\PythonScripts\generalmath')
-     import MatManip
-#get the sero cols of the matrix
-     rmList=MatManip.getZeroCols(a)
-#add to rmList the cols for poorly determined ME
-#     temp=self.getBadCol(a)
-#     rmList.extend(temp)
-#     rmList=sorted(list(set(rmList)))
-     if rmList!=[]:
-       a=MatManip.rmSlice(rmList, a, 1)
-       lLabSpec=self.constructML(rmList,npaNewLabels)
-       lsOBLab=[]
-       npaTBLab=[]
-       for elem in lLabSpec:
-         if len (elem)==1:
-           lsOBLab.append(elem[0])
-         else:
-           if npaTBLab!=[]:
-             temp=numpy.array(elem,dtype=int)
-             temp.shape=[1,temp.size]
-             npaTBLab=numpy.append(npaTBLab,temp, axis=0)
-           else:
-             npaTBLab=numpy.array(elem, dtype=int)
-             npaTBLab.shape=[1, npaTBLab.size]
-     npaME=self.mloNuclei[0].getME()
-#     print self.mloNuclei[0].manBody
-#     print '\n',npaEExp.shape, a.shape,npaME.shape, numpy.dot(a,npaME).shape,'\n'
-     target=npaEExp-(npaETh)
-#     print "target is ",target
-     npaWeights=numpy.zeros([npaEExp.size,npaEExp.size])
-     for nIdx, elem in enumerate(self.npaErrors):
-#       print elem
-       npaWeights[nIdx,nIdx]=1.0/(elem**2)
-#     ans, errors=MatManip.weightedlsq(a, npaWeights, target)
-#     print npaWeights.shape, a.shape, target.shape
-#     ans=numpy.linalg.lstsq(numpy.dot(npaWeights, a), numpy.dot(npaWeights, target))
-     diff=numpy.linalg.lstsq(a, target)
-     diff=diff[0]
-#     print  a.shape, target.shape, npaNewLabels.shape
-     ans, temp=self.mloNuclei[0].addDiff(diff, npaTBLab)
-     for nucleus in self.mloNuclei:
-      nucleus.llMESpec[1]=temp
-     return ans, a, target, npaME
 
 #quickly set manbody variable 
    def initmanbody(self):
@@ -800,7 +760,7 @@ class ShellOpt:
     if self.sMethod=='mono':
       ans, a, target, npaME=self.monopoleLeastSq()
     elif self.sMethod=='smono':
-      ans, a, target, npaME=self.monopoleLeastSq()
+      ans, a, target, npaME,stuff1,stuff2=self.monopoleLeastSq()
     elif self.sMethod=='single':
       ans, a, target, npaME=self.singleParticleLeastSq()
       
@@ -998,17 +958,388 @@ class ShellOpt:
     npaME+=randn(*npaME.shape)*fStd
     for nucleus in self.mloNuclei: 
       nucleus.takeME(npaME)
-           
+ #  Record how many iterations it takes to reach convergence for different
+      # convergence tolerances.      
+   def CheckConvergenceSensitivity(self, nIterMax, sMethod, display=True):
+     ldInfo=[]
+     nPow=1
+     import shutil
+     import copy
+     while self.dFitInfo['type']==None or self.dFitInfo['iteration max']!=self.dFitInfo['iterations']:
+       self.IterativeLSq(sMethod,10**-nPow,nIterMax,bMix=False)
+       ldInfo.append(copy.copy(self.dFitInfo))
+#      cleanup the directory in preparation for the next iteration (here be dragons)       
+       shutil.os.chdir('..') #change directory so the output directory may be removed
+       shutil.os.chdir('..') #change directory so the output directory may be removed
+       shutil.rmtree(self.sOutPath)
+       if not shutil.os.path.exists(self.sOutPath):
+         shutil.os.makedirs(self.sOutPath+'\\'+'tracking')
+         self.GetIn(True) #initialize the the optimization problem so that the process may be repeated
+         self.writeLevs(self.sOutPath+'\\'+'tracking\\')
+         nPow+=1
+
+     if display:
+       self.ConvergenceSensitivityReport(ldInfo)       
+
+     return ldInfo
+
+#   plot the results of the convergence sensitivity test
+   def ConvergenceSensitivityReport(self, ldInfo):
+     import matplotlib.pyplot as plt
+     lfTol=[]
+     lnIter=[]
+     lfDur=[]
+     for adict in ldInfo:
+       lfTol.append(adict['tolerance'])
+       lfDur.append(adict['duration'])
+       lnIter.append(adict['iterations'])
+     fig, ax=plt.subplots(2,1)
+     ax[0].plot(lfTol,lnIter)
+     ax[0].set_xlabel('Tolerance (MeV)')
+     ax[0].set_ylabel('Iterations')
+     
+     ax[1].plot(lnIter, lfDur)
+     ax[1].set_xlabel('Iterations')
+     ax[1].set_ylabel('Duration (s)')
+     plt.show()  
+     
+   def sMono(self):
+     #get full mono labels and split into monopole labels nad jlabels
+     npaFullMonoLab=self.mloNuclei[0].getMonoLabel()
+     lnpaShortMonoLab=npaFullMonoLab[:,:4]
+     lnpaShortMonoLab=[lnpaShortMonoLab[i,:] for i in range(lnpaShortMonoLab.shape[0])]
+     temp=[]
+     import numpy as np
+     
+     for i in range(len(lnpaShortMonoLab)):
+      bAddIt =True
+      for elem in temp:
+        if np.all(lnpaShortMonoLab[i]==elem):
+          bAddIt=False
+      if bAddIt:
+        temp.append(lnpaShortMonoLab[i])
+     import copy
+     lnpaShortMonoLab=copy.copy(temp)              
+     lnpaMonoJLab=[]
+     for shortLab in lnpaShortMonoLab:
+       temp=[]
+       for fullLab in npaFullMonoLab:
+         if np.all(shortLab==fullLab[:-2]):
+           temp.append(fullLab[-2:])
+       lnpaMonoJLab.append(temp)
+     a=[]
+     for nucleus in self.mloNuclei:
+       npaOcc=nucleus.getOcc(nucleus.getLevName())
+       temp2=[]
+       for row in npaOcc:
+         temp1=[]           
+         for shortLab in lnpaShortMonoLab:
+           if shortLab[0]==shortLab[1]:
+             temp1.append(row[shortLab[0]-1]*(row[shortLab[0]-1]-1.)/2.)
+           elif shortLab[0]!=shortLab[1]:
+             temp1.append(row[shortLab[0]-1]*row[shortLab[1]-1])
+         if len(temp2)==0:
+           temp2=np.array(temp1)
+           temp2.shape=[1,len(temp2)]
+         else:
+           temp1=np.array(temp1)
+           temp1.shape=[1, len(temp1)]
+           temp2=np.append(temp2,temp1, axis=0)
+       if len(a)==0:
+         a=np.array(temp2,dtype=float)
+       else:
+         a=np.append(a,temp2, axis=0)
+     import MatManip
+     rmList=MatManip.getZeroCols(a)
+     #keep only a few columns for testing purposes
+#     alsoRM=[i for i in range(a.shape[1]) if i not in rmList]
+#     rmList.extend(alsoRM[3:])
+     
+     #convert lnpaShortmonolab to nparray to use the rmslice utility in matmanip
+     lnpaShortMonoLab=np.array(lnpaShortMonoLab)
+     lnpaMonoJLab=np.array(lnpaMonoJLab)
+     
+     if rmList!=[]:
+       a=MatManip.rmSlice(rmList, a, 1)
+       lnpaShortMonoLab=MatManip.rmSlice(rmList,lnpaShortMonoLab, 0)              
+       lnpaMonoJLab=MatManip.rmSlice(rmList,lnpaMonoJLab, 0)
+
+     npaEExp=[]
+     npaETh=[]
+     
+     for nucleus in self.mloNuclei:
+       temp=np.array(nucleus.getEExp(),dtype=float)
+       tempth=nucleus.getEnNu()
+       if npaEExp!=[]:
+         npaEExp=np.append(npaEExp,temp,axis=0)
+         npaETh=np.append(npaETh,tempth,axis=0)
+       else: 
+         npaEExp=temp
+         npaETh=tempth
+         
+     target=npaEExp-npaETh
+     shortdiff=np.linalg.lstsq(a, target)
+     shortdiff=shortdiff[0]
+     npaLongMonoLab, longdiff=self.makeLong(lnpaShortMonoLab,lnpaMonoJLab,shortdiff)
+     
+     for nucleus in self.mloNuclei:
+      nucleus.llMESpec[1]=npaLongMonoLab
+      nucleus.llMESpec[0]=[]
+      self.mloNuclei[0].setMEnum()
+     npaME=self.mloNuclei[0].getME()
+     ans, temp=self.mloNuclei[0].addDiff(longdiff, npaLongMonoLab)
+     return ans, a, target, npaME,lnpaShortMonoLab,lnpaMonoJLab 
+
+   #make the long labels and diff
+   def makeLong(self,lnpaShortMonoLab,lnpaMonoJLab,shortdiff):
+     #Generate the full labels in order and assign the appropriate differences
+     import numpy as np
+     longdiff=[]
+     npaLongMonoLab=[]
+     for nIdx,shortLab in enumerate(lnpaShortMonoLab):
+       for jLab in lnpaMonoJLab[nIdx]:
+         if len(npaLongMonoLab)==0:
+           npaLongMonoLab=np.array(np.append(shortLab,jLab))
+           npaLongMonoLab.shape=[1,npaLongMonoLab.size]
+           longdiff.append(shortdiff[nIdx])
+         else:
+           temp=np.array(np.append(shortLab,jLab))
+           temp.shape=[1,temp.size]
+           npaLongMonoLab=np.append(npaLongMonoLab,temp, axis=0)
+           longdiff=np.append(longdiff,shortdiff[nIdx])
+       if npaLongMonoLab.shape[0]!= len(longdiff):
+         print 'Error in make long: labels dont match differences: ' , str(npaLongMonoLab.shape[0]) , 'labels and ', str(len(longdiff)), ' differences.'
+     return npaLongMonoLab, longdiff
+     
+     
+  #Make changes to each of the monopole matrix elements individually for 
+  #different increments and then plot how the the expected and obtained energy 
+  #changes depend on eachother and the increment.
+   def checkMonoResponse(self, fIncLow=10.**-3, fIncHigh=1.0,nRuns=10,display=True):
+     import numpy as np
+     npaIncs=np.linspace(fIncLow,fIncHigh, nRuns)
+     import numpy as np
+     npaEThOrig=[]
+     for nucleus in self.mloNuclei:
+       tempth=nucleus.getEnNu()
+       if npaEThOrig!=[]:
+         npaEThOrig=np.append(npaEThOrig,tempth,axis=0)
+       else: 
+         npaEThOrig=tempth
+     ans, a, target, npaOriginalME,lnpaShortMonoLab,lnpaMonoJLab=self.sMono()
+
+     for nIIdx,fInc in enumerate(npaIncs):
+       for nJIdx,shortLab in enumerate(lnpaShortMonoLab):
+         npaShortDiff=np.zeros([lnpaShortMonoLab.shape[0],1])
+         #make the change for this iteration
+         npaShortDiff[nJIdx]+=fInc
+         npaLongMonoLab, longdiff=self.makeLong(lnpaShortMonoLab,lnpaMonoJLab,npaShortDiff)
+         npaME=npaOriginalME+longdiff
+         for nucleus in self.mloNuclei:
+           #change me spec
+           nucleus.llMESpec[0]=[]
+           nucleus.llMESpec[1]=npaLongMonoLab
+           nucleus.setMEnum()
+           #change the me
+           nucleus.takeME(npaME)
+           nucleus.runSM()
+         #get the obtained change
+         npaEThNew=[]
+         llnAZ=[]
+         for nucleus in self.mloNuclei:
+           tempth=nucleus.getEnNu()
+           llnAZ.extend([nucleus.nAZ for i in range(len(tempth))])
+           if npaEThNew!=[]:
+             npaEThNew=np.append(npaEThNew,tempth,axis=0)
+           else: 
+             npaEThNew=tempth
+         npaChangeObtained=npaEThNew-npaEThOrig
+         npaShortDiff.shape=[npaShortDiff.size,1]
+         npaChangeExpected=np.dot(a,npaShortDiff)
+         self.writeMonoResponse(npaChangeExpected, npaChangeObtained, fInc, shortLab, llnAZ)
+     self.displayMonoResponse(lnpaShortMonoLab,llnAZ)
+ #output the response for changes in the monopole term
+   def writeMonoResponse(self, Eexpect, Eobtained, fInc, npaMonoLab,llnAZ):
+     import os
+     path=self.sOutPath+'\\'+'tracking'+'\\MonoResponse\\'
+     sIsoPath=path+'\\ByIsotope\\'
+     sMonoPath=path+'\\ByMonopole\\'
+
+     if not os.path.isdir(path):
+       os.makedirs(sIsoPath)
+       os.makedirs(sMonoPath)
+
+     sIsoForm='{:10}{:10.4f}{:10.4f}{:10.4f}\n'
+     sIsoHeadForm='{:10}{:10}{:10}{:10}\n'
+    
+     for expect,obtain, isoLab in zip(Eexpect, Eobtained, llnAZ):
+       sIsofName='A_'+str(isoLab[0])+'Z_'+str(isoLab[1])+'.mr'
+       if os.path.isfile(sIsoPath+sIsofName):
+         fOut=open(sIsoPath+sIsofName,'a+')
+       else:
+         fOut=open(sIsoPath+sIsofName,'w')
+         fOut.write(sIsoHeadForm.format('Mono','Increment','Expected','Obtained'))
+       fOut.write(sIsoForm.format(str(npaMonoLab), float(fInc),float(expect),float(obtain)))
+       fOut.close()
+
+     sMonofName=str(npaMonoLab)+'.mr'
+     sMonoForm='{:10}{:10.4f}{:10.4f}{:10.4f}\n'
+     sMonoHeadForm='{:10}{:10}{:10}{:10}\n'
+     if os.path.isfile(sMonoPath+sMonofName):
+       fOut=open(sMonoPath+sMonofName,'a+')
+     else:
+       fOut=open(sMonoPath+sMonofName,'w')
+       fOut.write(sMonoHeadForm.format('Isotope','Increment','Expected','Obtained'))
+     for expect,obtain, isoLab in zip(Eexpect, Eobtained, llnAZ): 
+       fOut.write(sMonoForm.format(str(isoLab), float(fInc),float(expect),float(obtain)))
+     fOut.close()
+     
+  #display the result of the monoME response test
+   def displayMonoResponse(self, lnpaShortMonoLabel):
+     path=self.sOutPath+'\\'+'tracking'+'\\MonoResponse\\'
+     sMonoPath=path+'\\ByMonopole\\'
+     import matplotlib.pyplot as plt
+     import os
+     import numpy as np
+     #plot by monopole term
+     fig,ax=plt.subplots(2,1)
+     lfExpectedLong=[]
+     lfObtainedLong=[]
+
+     for npaMonoLab in lnpaShortMonoLabel:
+       sMonofName=str(npaMonoLab)+'.mr'
+       if os.path.isfile(sMonoPath+sMonofName):
+         fOut=open(sMonoPath+sMonofName,'r')
+         lfExpected=[]
+         lfObtained=[]
+         lfInc=[]
+         nidx=0
+         for line in fOut:
+           temp=line.strip().split()
+           if nidx>0:
+             lfInc.append(float(temp[2]))
+             lfExpected.append(float(temp[3]))
+             lfObtained.append(float(temp[4]))
+           nidx+=1
+         lfExpected=np.array(lfExpected)
+         lfObtained=np.array(lfObtained)
+         if len(lfExpectedLong)!=0 and  len(lfObtainedLong)!=0:
+           lfExpectedLong=np.append(lfExpectedLong,lfExpected)
+           lfObtainedLong=np.append(lfObtainedLong,lfObtained)
+         else:
+           lfExpectedLong=lfExpected
+           lfObtainedLong=lfObtained
+
+         ax[0].plot(lfExpected,lfObtained,'o', label=npaMonoLab)
+
+         lfRat=[]
+         lfIncR=[]
+         for fInc,fEx,fOb in zip(lfInc,lfExpected, lfObtained):
+           if fEx!=0:
+             lfRat.append(fOb/fEx)
+             lfIncR.append(fInc)
+         ax[1].plot(lfIncR,lfRat,'o', label=str(npaMonoLab))
+       else:
+         print 'Error: displayMonoRespose: file ',sMonoPath+sMonofName,' does not exist.'
+         break
+ 
+     from scipy import stats
+     slope,intercept, r,p, stderr=stats.linregress(lfExpectedLong,lfObtainedLong)
+     x=ax[0].get_xlim()
+     y=[slope*t+intercept for t in x]
+     lform='Ref: ${:3.2f}x+{:3.2f}$, $r^2={:3.2f}$'
+
+     ax[0].plot(x,y,'--', label=lform.format(slope,intercept,r**2)) 
+     ax[0].set_title('Monpole Response by Monopole Term')
+     ax[0].set_xlabel('Expected Change (MeV)')
+     ax[0].set_ylabel('Change Obtained (MeV)')
+     ax[0].legend()
+
+     ax[1].set_xlabel('Increment (MeV)')
+     ax[1].set_ylabel('Ratio of Obtained to Expected')
+     ax[1].legend()
+       
+#     plt.tight_layout()
+     plt.show()
+
+     #plot by Isotope
+     fig,ax=plt.subplots(2,1)
+
+     sIsoPath=path+'\\ByIsotope\\'
+     llnAZ=[]
+     for nucleus in self.mloNuclei:
+       llnAZ.append(nucleus.nAZ)
+     for isoLab in llnAZ:
+       sIsofName='A_'+str(isoLab[0])+'Z_'+str(isoLab[1])+'.mr'
+       if os.path.isfile(sIsoPath+sIsofName):
+         fOut=open(sIsoPath+sIsofName,'r')
+         lfExpected=[]
+         lfObtained=[]
+         lfInc=[]
+         nidx=0
+         for line in fOut:
+           temp=line.strip().split()
+           if nidx > 0 :
+             lfInc.append(float(temp[4]))
+             lfExpected.append(float(temp[5]))
+             lfObtained.append(float(temp[6]))
+           nidx+=1
+         lfExpected=np.array(lfExpected)
+         lfObtained=np.array(lfObtained)
+         sIsoLab='A_'+str(isoLab[0])+'Z_'+str(isoLab[1])
+         ax[0].plot(lfExpected,lfObtained,'o', label=sIsoLab)
+
+         lfRat=[]
+         lfIncR=[]
+         for fInc,fEx,fOb in zip(lfInc,lfExpected, lfObtained):
+           if fEx!=0:
+             lfRat.append(fOb/fEx)
+             lfIncR.append(fInc)
+         ax[1].plot(lfIncR,lfRat,'o', label=sIsoLab)
+         
+       else:
+         print 'Error: displayMonoRespose: file ',sIsoPath+sIsofName,' does not exist.'
+         break
+       
+     ax[0].plot(x,y,'--', label=lform.format(slope,intercept,r**2)) 
+     ax[0].set_title('Monpole Response by Isotope')
+     ax[0].set_xlabel('Expected Change (MeV)')
+     ax[0].set_ylabel('Change Obtained (MeV)')
+     ax[0].legend()
+
+     ax[1].set_xlabel('Increment (MeV)')
+     ax[1].set_ylabel('Ratio of Obtained to Expected')
+     ax[1].legend()
+       
+#     plt.tight_layout()
+     plt.show()       
+     
+
+     
+     
+        
+         
+##########################################################         
 import sys
 sys.path.append('c:\\PythonScripts\\NushellScripts\\')
 sys.path.append('C:\PythonScripts\generalmath')
 
+
 x=ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in','c:\\PythonScripts\\NushellScripts\\test', 'c:\\PythonScripts\\NushellScripts\\errors.dat',initialize=False, conservative=False)
+#x.checkMonoResponse(fIncLow=-1.5, fIncHigh=1.5,nRuns=30,display=True)
+
+temp1,temp2,temp3,temp4,lnpaShortMonoLabel,temp6=x.sMono()
+x.displayMonoResponse(lnpaShortMonoLabel)
+
+
+#print x.CheckConvergenceSensitivity(10, 'smono', display=True)
+
+
 
 
 #x.addMENoise(3.0)
 
-#print x.IterativeLSq(sMethod='mono',bMix=False, nMaxIter=20, fTolin=10**-5)
+#print x.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=60, fTolin=10**-2)
 
 #x.performOptimization()
 #x.sMethod='single'
@@ -1020,4 +1351,4 @@ x=ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in','c:\\PythonScripts\\
 #nStop=8
 #x.mloNuclei[1].plotEthError(lHist[:nStop], lBins[:nStop], lMu[:nStop], lSigma[:nStop], nSize)
 
-x.plotResults(sMethod='mono', bError=True)
+#x.plotResults(sMethod='smono', bError=True)

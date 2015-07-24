@@ -62,7 +62,7 @@ class MEhandler:
         self.nMEnum.append(0)
       elif len(self.llMESpec[nIdx])==0 and elem==2:
 #        self.nMEnum.append(self.countTBME())
-        self.nMEnum.append(0)            
+        self.nMEnum.append(0)
 # make the path of the interaction file   
   def makeIntPath(self, sPreExt='', nExtrap=0):
     if nExtrap==0:
@@ -85,16 +85,7 @@ class MEhandler:
         sStart="{0:3}{1:>11.4f}"
         sNext="{0:>10.4f}"
         templine=line.strip().split()        
-        if len(self.llMESpec[0])==0 and nLine==0:
-#          print 'writing all ME'
-          sNew=sStart.format(templine[0],float(npaME[0]))
-          for nElemIdx, elem in enumerate(npaME):
-            if nElemIdx!=0:
-              sNew=sNew+sNext.format(float(elem))
-          for i in range(len(templine)-len(npaME)-1):
-              sNew=sNew+sNext.format(float(templine[len(npaME)+i+1]))
-          fIntOut.write(sNew+"\n")
-        elif len(self.llMESpec[0])!=0 and nLine==0:
+        if len(self.llMESpec[0])!=0 and nLine==0:
 #          print "Writing only listed ME"
           for nElemIdx, elem in enumerate(self.llMESpec[0]):
             templine[elem]=npaME[nElemIdx]
@@ -148,12 +139,17 @@ class MEhandler:
     sStart="{0:>4}"
     sNext="{0:>3}"
     sEnd="{0:>4}{1:>3}{2:>14.5f}"
-    nElem=0
     nUnCm=0
+    if self.llMESpec[1].shape[0]!=npaME.size:
+      print 'Number of ME Labels does not match number of ME to be written: ' + str(self.llMESpec[1].shape[0])+ ' labels and ' + str(npaME.size) + ' ME.'
+      print self.llMESpec[1]
+      print npaME
+      raw_input('press enter')
     import numpy as np
     for line in fIntSrc:
+      flag=True
       sNew=""          
-      if line[0]!='!' and nElem<npaME.shape[0]:             
+      if line[0]!='!':             
         temp1=line.strip().split()
         if nUnCm>0:
           if len(self.llMESpec[1])!=0:
@@ -163,23 +159,20 @@ class MEhandler:
                 temp2.append(int(temp1[nIdx]))
               else:
                 temp2=[int(temp1[nIdx])]
-        if len(self.llMESpec[1])==0 and nUnCm!=0:
-          sNew=sNew+sStart.format(temp1[0])
-          for i in range(1,4):
-            sNew=sNew+sNext.format(temp1[i])
-          sNew=sNew+sEnd.format(temp1[4],temp1[5], float(npaME[nElem]))
-          fIntOut.write(sNew+"\n")          
-          nElem=nElem+1
-        elif len(self.llMESpec[1])!=0 and nUnCm!=0 and np.all(self.llMESpec[1][nElem,:] == np.array(temp2)):
-          sNew=sNew+sStart.format(temp1[0])          
-          for i in range(1,4):
-            sNew=sNew+sNext.format(temp1[i])
-          sNew=sNew+sEnd.format(temp1[4],temp1[5], float(npaME[nElem]))
-          fIntOut.write(sNew+"\n")          
-          nElem=nElem+1
+          for nElem, npaMELab in enumerate(self.llMESpec[1]):
+            if len(self.llMESpec[1])!=0 and nUnCm!=0 and np.all(npaMELab == np.array(temp2)):
+              sNew=sNew+sStart.format(temp1[0])          
+              for i in range(1,4):
+                sNew=sNew+sNext.format(temp1[i])
+              sNew=sNew+sEnd.format(temp1[4],temp1[5], float(npaME[nElem]))
+              fIntOut.write(sNew+"\n")          
+              flag=False
+          if flag:
+            fIntOut.write(line)        
         else:
           fIntOut.write(line)
         nUnCm+=1
+
       else:
         fIntOut.write(line)
     fIntSrc.close()
@@ -188,7 +181,8 @@ class MEhandler:
   def getTBME(self, bAll=False, nExtrap=0):
     fIntSrc=open(self.makeIntPath('',nExtrap),'r') 
     import numpy as np
-    npaME=[]
+    size= self.llMESpec[1].shape[0]
+    npaME=np.zeros([size,1])
     nElem=0
     nUnCm=0
     for line in fIntSrc:
@@ -203,19 +197,21 @@ class MEhandler:
               temp=[int(line[nIdx])]
           temp=np.array(temp)
           temp.shape=[1,temp.size]
-        if  (len(self.llMESpec[1])==0 or bAll==True)and nUnCm!=0:
+        if  bAll==True and nUnCm!=0:
           if npaME!=[]:
             npaME.append(float(line[6]))
           else:            
             npaME=[line[6]]
           nElem=nElem+1
-        elif len(self.llMESpec[1])!=0 and nUnCm!=0 and np.all(self.llMESpec[1][nElem]==temp):
-          npaME.append(float(line[6]))         
-          nElem=nElem+1
-          if nElem >= len(self.llMESpec[1]) and len(self.llMESpec[1])!=0:
-            break
+        elif len(self.llMESpec[1])!=0 and nUnCm!=0:
+          for nLabIdx,lab in enumerate(self.llMESpec[1]):
+            if np.all(lab==temp):
+              npaME[nLabIdx]=float(line[6])
+              nElem=nElem+1
+              break
         nUnCm+=1
-        
+    if (not bAll and len(npaME)!=nElem):
+      raw_input('Warning expected: '+str(self.llMESpec[1].shape[0])+' ME. But found: '+ str(len(npaME)))        
     fIntSrc.close()
     return np.array(npaME,dtype=float)
 
@@ -424,22 +420,21 @@ class MEhandler:
         line=line.strip().split()
         if nUnCm>0:
           temp=[]
-          for nIdx in range(4):
+          for nIdx in range(6):
             if nIdx!=0:
               temp.append(int(line[nIdx]))
             else:
               temp=[int(line[nIdx])]
           temp=np.array(temp)
           temp.shape=[1,temp.size]
-        for nIdx, lab in enumerate(label):
+        for nIIIdx, lab in enumerate(label):
           if nUnCm!=0 and np.all(lab==temp):
-            print len(label)
-            npaME.append(float(line[6])+delta[nIdx])            
-            for nIdx in range(6):
-              if nIdx!=0:
-                temp.append(int(line[nIdx]))
+            npaME.append(float(line[6])+delta[nIIIdx])            
+            for nIIdx in range(6):
+              if nIIdx!=0:
+                temp.append(int(line[nIIdx]))
               else:
-                temp=[int(line[nIdx])]
+                temp=[int(line[nIIdx])]
             npaMESpec.append(temp)
         nUnCm+=1
     fIntSrc.close()
