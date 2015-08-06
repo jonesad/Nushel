@@ -246,31 +246,41 @@ class MEhandler:
       fIntSrc.close()
       fIntOut.close()
 #get the labels for the monopole matrix elements
-  def getMonoLabel(self):
+  def getMonoLabel(self, npaBase=[]):
     import numpy as np
     npaLabel=self.getLabel()
     npaMonoLabel=np.array([])
-    nMono=0
-    for nIdx in range(npaLabel.shape[0]):
-      nIsit=0
-      if npaLabel[nIdx,1]==npaLabel[nIdx,3] and npaLabel[nIdx,0]==npaLabel[nIdx,2]:
-        nMono+=1
-        for nJj in range(npaMonoLabel.shape[0]):
-          if npaMonoLabel!=np.array([]):
-            if npaMonoLabel.size==6 and np.all(npaMonoLabel==npaLabel[nIdx,:6]):
-              nIsit=1
-              break
-            elif npaMonoLabel.size>6: 
-              if np.all(npaLabel[nIdx,:6]==npaMonoLabel[nJj,:]):
+    if len(npaBase)==0:
+      nMono=0
+      for nIdx in range(npaLabel.shape[0]):
+        nIsit=0
+        if npaLabel[nIdx,1]==npaLabel[nIdx,3] and npaLabel[nIdx,0]==npaLabel[nIdx,2]:
+          nMono+=1
+          for nJj in range(npaMonoLabel.shape[0]):
+            if npaMonoLabel!=np.array([]):
+              if npaMonoLabel.size==6 and np.all(npaMonoLabel==npaLabel[nIdx,:6]):
                 nIsit=1
                 break
-      else:
-        nIsit=1        
-      if nIsit==0:
-        if npaMonoLabel!=np.array([]):
-          npaMonoLabel=np.append(npaMonoLabel,np.array([npaLabel[nIdx,:6]]),0)
+              elif npaMonoLabel.size>6: 
+                if np.all(npaLabel[nIdx,:6]==npaMonoLabel[nJj,:]):
+                  nIsit=1
+                  break
         else:
-          npaMonoLabel=np.array([npaLabel[nIdx,:6]])
+          nIsit=1        
+        if nIsit==0:
+          if npaMonoLabel!=np.array([]):
+            npaMonoLabel=np.append(npaMonoLabel,np.array([npaLabel[nIdx,:6]]),0)
+          else:
+            npaMonoLabel=np.array([npaLabel[nIdx,:6]])
+    else:
+      for nIdx in range(npaLabel.shape[0]):
+        for nJIdx in range(npaBase.shape[0]):
+          if np.all(npaLabel[nIdx,:4]==npaBase[nJIdx,:]):
+            if npaMonoLabel!=np.array([]):
+              npaMonoLabel=np.append(npaMonoLabel,np.array([npaLabel[nIdx,:6]]),0)
+            else:
+              npaMonoLabel=np.array([npaLabel[nIdx,:6]])
+                
     return npaMonoLabel
 
 #get the monopole interaction matrix elements
@@ -341,16 +351,20 @@ class MEhandler:
   def takeME(self, npaME):
     npaOBME=[]
     npaTBME=[]
+    print self.nMEnum
+    self.setMEnum()
+    print self.nMEnum
+    
     for nCt, elem in enumerate(self.nMEnum):
       if self.manBody[nCt]==1:
         npaOBME=npaME[:self.nMEnum[nCt]]
 #        print 'self.nMEnum[nCt]', self.nMEnum[nCt]
-#        print ' npaOBME', npaOBME
+        print ' npaOBME', npaOBME
       elif self.manBody[nCt]==2:
         npaTBME=npaME[sum(self.nMEnum[:nCt]):sum(self.nMEnum[:nCt+1])]
 #        print 'sum(self.nMEnum[:nCt])', sum(self.nMEnum[:nCt])
 #        print  'sum(self.nMEnum[:nCt+1])', sum(self.nMEnum[:nCt+1])
-#        print ' npaTBME', npaTBME
+        print ' npaTBME', npaTBME
     if len(npaOBME)>0:
       self.writeOBME(npaOBME) 
     if len(npaTBME)>0:

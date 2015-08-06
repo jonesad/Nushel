@@ -42,7 +42,7 @@ class nucleus(ShellOptFl.MEhandler):
     fAns.write("--------------------------------------------------\n")
     sForm='{:21s}! '
     sFormN='{:3d}{:18s}! '
-    fAns.write(sForm.format('lpe,   0')+'option (lpe or lan), neig (zero=10) \n')
+    fAns.write(sForm.format('lpe,   2')+'option (lpe or lan), neig (zero=10) \n')
     fAns.write(sForm.format(lsShared[0])+'model space (*.sp) name (a8)\n')
     fAns.write(sForm.format(lsShared[1])+'any restrictions (y/n)\n')
     fAns.write(sForm.format(lsShared[2])+'interaction (*.int) name (a8)\n')
