@@ -32,48 +32,48 @@ def CreateInFile(sInfilePath):
   fInFile.write('False\n')
   
   #number of nuclei used in optimization
-  fInFile.write('8\n')
+  fInFile.write('10\n')
 
   #number of protons 
   fInFile.write('  8\n')
   #of nucleons
   fInFile.write('17\n')
   #Experimental ground state energy of the nucleus
-  fInFile.write('-4.14308\n')
+  fInFile.write('  -4.14308   0.00000\n')
   #min max delta j
   fInFile.write(' 0.5, 2.5, 1.0,\n')
   #parity
   fInFile.write('  0\n')
   #number of states used in optimization
   fInFile.write('2\n')
-  #state specifications (J, nJ, P)
-  fInFile.write('  1/2  1  +1\n')
-  fInFile.write('  5/2  1  +1\n')    
+  #state specificationss (J, nJ, P)
+  fInFile.write('  5/2  1  +1   0.00000   0.00000\n')    
+  fInFile.write('  1/2  1  +1   0.87076   0.00010\n')
   
   #number of protons 
   fInFile.write('  8\n')  
   #of nucleons
   fInFile.write('18\n')
   #Experimental ground state energy of the nucleus
-  fInFile.write('-12.18845\n')
+  fInFile.write(' -12.18845   0.00000\n')
   #min max delta j
   fInFile.write(' 0.0, 4.0, 1.0,\n')
   #parity
   fInFile.write('  0\n')
   #number of states used in optimization
   fInFile.write('4\n')
-  #state specifications (J, nJ, P)
-  fInFile.write('  0  1  +1\n')
-  fInFile.write('  2  1  +1\n')
-  fInFile.write('  4  1  +1\n')    
-  fInFile.write('  3  1  +1\n')    
+  #state specifications (J, nJ, P) 
+  fInFile.write('  0  1  +1   0.00000   0.00000\n')
+  fInFile.write('  2  1  +1   1.98207   0.00009\n')
+  fInFile.write('  4  1  +1   3.55484   0.00040\n')    
+  fInFile.write('  3  1  +1   5.37780   0.00060\n')    
  
   #number of protons 
   fInFile.write('  8\n')
   #of nucleons
   fInFile.write('19\n')
   #Experimental ground state energy of the nucleus
-  fInFile.write('-16.14409\n')
+  fInFile.write(' -16.14409   0.00264\n')
   #min max delta j
   fInFile.write(' 0.5, 4.5, 1.0,\n')
   #parity
@@ -81,20 +81,20 @@ def CreateInFile(sInfilePath):
   #number of states used in optimization
   fInFile.write('7\n')
   #state specifications (J, nJ, P)
-  fInFile.write('  5/2  1  +1\n')
-  fInFile.write('  3/2  1  +1\n')    
-  fInFile.write('  1/2  1  +1\n')    
-  fInFile.write('  9/2  1  +1\n')    
-  fInFile.write('  7/2  1  +1\n')    
-  fInFile.write('  5/2  2  +1\n')
-  fInFile.write('  3/2  2  +1\n')    
+  fInFile.write('  5/2  1  +1   0.00000   0.00000\n')
+  fInFile.write('  3/2  1  +1   0.09600   0.00050\n')    
+  fInFile.write('  1/2  1  +1   1.47170   0.00040\n')    
+  fInFile.write('  9/2  1  +1   2.37150   0.00100\n')    
+  fInFile.write('  7/2  1  +1   2.77900   0.00090\n')    
+  fInFile.write('  5/2  2  +1   3.15350   0.00170\n')
+  fInFile.write('  3/2  2  +1   3.06740   0.00160\n')    
     
  #number of protons 
   fInFile.write('  8\n')
   #of nucleons
   fInFile.write('20\n')
   #Experimental ground state energy of the nucleus
-  fInFile.write('-23.752104\n')
+  fInFile.write('-23.752104   0.00088\n')
   #min max delta j
   fInFile.write(' 0.0, 4.0, 1.0,\n')
   #parity
@@ -102,38 +102,38 @@ def CreateInFile(sInfilePath):
   #number of states used in optimization
   fInFile.write('5\n')
   #state specifications (J, nJ, P)
-  fInFile.write('  0  1  +1\n')
-  fInFile.write('  2  1  +1\n')
-  fInFile.write('  4  1  +1\n')    
-  fInFile.write('  2  2  +1\n')
-  fInFile.write('  0  2  +1\n')
+  fInFile.write('  0  1  +1   0.00000   0.00000\n')
+  fInFile.write('  2  1  +1   1.67368   0.00015\n')
+  fInFile.write('  4  1  +1   3.57000   0.00700\n')    
+  fInFile.write('  2  2  +1   4.07200   0.00400\n')
+  fInFile.write('  0  2  +1   4.45600   0.00500\n')
 #
 #  #number of protons 
-#  fInFile.write('  8\n')
-#  #of nucleons
-#  fInFile.write('21\n')
-#  #Experimental ground state energy of the nucleus
-#  fInFile.write('-27.56\n')
-#  #min max delta j
-#  fInFile.write(' 0.5, 4.5, 1.0,\n')
-#  #parity
-#  fInFile.write('  0\n')
-#  #number of states used in optimization
-#  fInFile.write('6\n')
-#  #state specifications (J, nJ, P)
-#  fInFile.write('  5/2  1  +1\n')
-#  fInFile.write('  1/2  1  +1\n')    
-#  fInFile.write('  3/2  1  +1\n')    
-#  fInFile.write('  7/2  1  +1\n')    
-#  fInFile.write('  5/2  2  +1\n')    
-#  fInFile.write('  9/2  1  +1\n')
-#  
+  fInFile.write('  8\n')
+  #of nucleons
+  fInFile.write('21\n')
+  #Experimental ground state energy of the nucleus
+  fInFile.write(' -27.55768   0.01199\n')
+  #min max delta j
+  fInFile.write(' 0.5, 4.5, 1.0,\n')
+  #parity
+  fInFile.write('  0\n')
+  #number of states used in optimization
+  fInFile.write('6\n')
+  #state specifications (J, nJ, P)
+  fInFile.write('  5/2  1  +1   0.00000   0.00000\n')
+  fInFile.write('  1/2  1  +1   1.22000   0.00300\n')    
+  fInFile.write('  3/2  1  +1   2.13300   0.00500\n')    
+  fInFile.write('  7/2  1  +1   3.07300   0.01000\n')    
+  fInFile.write('  5/2  2  +1   3.02600   0.00600\n')    
+  fInFile.write('  9/2  1  +1   4.92700   0.01200\n')
+  
   #number of protons 
   fInFile.write('  8\n')
   #of nucleons
   fInFile.write('22\n')
   #Experimental ground state energy of the nucleus
-  fInFile.write('-34.40758\n')
+  fInFile.write(' -34.40758   0.05692\n')
   #min max delta j
   fInFile.write(' 0.0, 4.0, 1.0,\n')
   #parity
@@ -141,14 +141,14 @@ def CreateInFile(sInfilePath):
   #number of states used in optimization
   fInFile.write('1\n')
   #state specifications (J, nJ, P)
-  fInFile.write('  0  1  +1\n')
+  fInFile.write('  0  1  +1   0.00000   0.00000\n')
   
   #number of protons 
   fInFile.write('  8\n')
   #of nucleons
   fInFile.write('23\n')
   #Experimental ground state energy of the nucleus
-  fInFile.write('-37.141572\n')
+  fInFile.write('-37.141572   0.09000\n')
   #min max delta j
   fInFile.write(' 0.5, 4.5, 1.0,\n')
   #parity
@@ -156,14 +156,14 @@ def CreateInFile(sInfilePath):
   #number of states used in optimization
   fInFile.write('1\n')
   #state specifications (J, nJ, P)
-  fInFile.write('  1/2  1  +1\n')
+  fInFile.write('  1/2  1  +1   0.00000   0.00000\n')
 
   #number of protons 
   fInFile.write('  8\n')
   #of nucleons
   fInFile.write('24\n')
   #Experimental ground state energy of the nucleus
-  fInFile.write('-41.333144\n')
+  fInFile.write('-41.333144   0.10992\n')
   #min max delta j
   fInFile.write(' 0.0, 4.0, 1.0,\n')
   #parity
@@ -171,29 +171,29 @@ def CreateInFile(sInfilePath):
   #number of states used in optimization
   fInFile.write('1\n')
   #state specifications (J, nJ, P)
-  fInFile.write('  0  1  +1\n')
+  fInFile.write('  0  1  +1   0.00000   0.00000\n')
 
-#  #number of protons 
-#  fInFile.write('  8\n')
-#  #of nucleons
-#  fInFile.write('25\n')
-#  #Experimental ground state energy of the nucleus
-#  fInFile.write('-40.46\n')
-#  #min max delta j
-#  fInFile.write(' 0.5, 4.5, 1.0,\n')
-#  #parity
-#  fInFile.write('  0\n')
-#  #number of states used in optimization
-#  fInFile.write('1\n')
-#  #state specifications (J, nJ, P)
-#  fInFile.write('  3/2  1  +1\n')
+  #number of protons 
+  fInFile.write('  8\n')
+  #of nucleons
+  fInFile.write('25\n')
+  #Experimental ground state energy of the nucleus
+  fInFile.write('-40.55713   0.11093\n')
+  #min max delta j
+  fInFile.write(' 0.5, 4.5, 1.0,\n')
+  #parity
+  fInFile.write('  0\n')
+  #number of states used in optimization
+  fInFile.write('1\n')
+  #state specifications (J, nJ, P)
+  fInFile.write('  3/2  1  +1   0.00000   0.00000\n')
 
   #number of protons 
   fInFile.write('  8\n')
   #of nucleons
   fInFile.write('26\n')
   #Experimental ground state energy of the nucleus
-  fInFile.write('-41.243138\n')
+  fInFile.write(' -41.24314    0.15551\n')
   #min max delta j
   fInFile.write(' 0.0, 4.0, 1.0,\n')
   #parity
@@ -201,45 +201,14 @@ def CreateInFile(sInfilePath):
   #number of states used in optimization
   fInFile.write('1\n')
   #state specifications (J, nJ, P)
-  fInFile.write('  0  1  +1\n')
-
-#  #number of protons 
-#  fInFile.write('  8\n')
-#  #of nucleons
-#  fInFile.write('27\n')
-#  #Experimental ground state energy of the nucleus
-#  fInFile.write('-39.09\n')
-#  #min max delta j
-#  fInFile.write(' 0.5, 2.5, 1.0,\n')
-#  #parity
-#  fInFile.write('  0\n')
-#  #number of states used in optimization
-#  fInFile.write('1\n')
-#  #state specifications (J, nJ, P)
-#  fInFile.write('  3/2  1  +1\n')
+  fInFile.write('  0  1  +1   0.00000   0.00000\n')
   
-#  #number of protons 
-#  fInFile.write('  8\n')
-#  #of nucleons
-#  fInFile.write('28\n')
-#  #Experimental ground state energy of the nucleus
-#  fInFile.write('-38.27\n')
-#  #min max delta j
-#  fInFile.write(' 0.0, 4.0, 1.0,\n')
-#  #parity
-#  fInFile.write('  0\n')
-#  #number of states used in optimization
-#  fInFile.write('1\n')
-#  #state specifications (J, nJ, P)
-#  fInFile.write('  0  1  +1\n')
-
-
-#code to create an input file
-#CreateInFile('C:/PythonScripts/NushellScripts/OptInput.in')
+  #code to create an input file
+CreateInFile('C:/PythonScripts/NushellScripts/OptInput.in')
 
 class ShellOpt:
    'Class for shell model hamiltonian optimization problems'
-   def __init__(self, sInPath, sOutPath, sErrorPath='', initialize=True,conservative=False):
+   def __init__(self, sInPath, sOutPath, sErrorPath='', initialize=True):
 #flag that says to use the groundstate energy in optimization
       self.init=False
       self.useGS=1
@@ -248,20 +217,26 @@ class ShellOpt:
       self.track=1
       self.sInPath = sInPath
       self.sOutPath = sOutPath
+      self.EExp=[]
+      self.npaErrors=[]
       #get info from input file and initializes the nuclei objects
       self.GetIn(initialize)
+      
+      if self.useGS==1:
+        import math
+        nIdx=0
+        for nucleus in self.mloNuclei:
+          for state in nucleus.mllspec:
+            self.EExp[nIdx]+=nucleus.fGSE
+            self.npaErrors[nIdx]=math.sqrt(self.npaErrors[nIdx]**2+nucleus.fError**2)
+            nIdx+=1
       self.dFitInfo={'type': None, 'tolerance': None, 'iterations': None, 'iteration max': None,'duration':None}
       import os
       if not os.path.exists(self.sOutPath+'\\'+'tracking'):
         os.makedirs(self.sOutPath+'\\'+'tracking')
       if initialize:
         self.writeLevs(self.sOutPath+'\\'+'tracking\\')
-      self.conservative=conservative
-      if sErrorPath!='':
-        import numpy as np
-        self.npaErrors=np.array([])
-        for nucleus in self.mloNuclei:
-          self.npaErrors=np.append(self.npaErrors,nucleus.getLevError(sErrorPath))
+      
       if initialize:
         self.obj(self.mloNuclei[0].getME())
       self.init=True
@@ -270,21 +245,17 @@ class ShellOpt:
 
 #Write the initial state of the fit          
    def writeLevs(self, path):
-     npaEExp=[]
      npaETh=[]
      lLS=[]
      lAZ=[]
      for nucleus in self.mloNuclei:
        import numpy
-       temp=list(numpy.array(nucleus.getEExp(),dtype=float))
        tempth=list(nucleus.getEnNu())
        lLS.extend(nucleus.mllspec)
        lAZ.extend([nucleus.nAZ]*len(nucleus.mllspec))
-       if npaEExp!=[]:
-         npaEExp=numpy.append(npaEExp,temp,axis=0)
+       if npaETh!=[]:
          npaETh=numpy.append(npaETh,tempth,axis=0)
        else: 
-         npaEExp=list(temp)
          npaETh=list(tempth)
          
      fOut=open(path+'Levels.dat','w')
@@ -292,9 +263,8 @@ class ShellOpt:
      fOut.write(sHFormat.format('[A,Z]','J','nJ','P', 'Eexp', 'Einit'))
      sFormat='{:10}{:5}{:5}{:5}{:10.4f}{:10.4f}'
 #     print lAZ, lLS, npaEExp.shape, npaETh.shape
-     for AZ,LS,Exp,Th in zip(lAZ, lLS,npaEExp,npaETh):
-       temp=LS.strip().split()
-       fOut.write(sFormat.format(AZ,temp[0],temp[1],temp[2],Exp,Th)+'\n')
+     for AZ,LS,Exp,Th in zip(lAZ, lLS,self.EExp,npaETh):
+       fOut.write(sFormat.format(AZ,LS[0],LS[1],LS[2],Exp,Th)+'\n')
      fOut.close()
 
 #Update the levels with their final values
@@ -490,15 +460,33 @@ class ShellOpt:
      self.mnNuclei=int(fIn.readline().strip('\n'))
      self.mloNuclei=[]
      for nIdx in range(self.mnNuclei):
-       self.mloNuclei.append(ShellNuclei.nucleus(int(fIn.readline()),int(fIn.readline()),float(fIn.readline()),self.sOutPath,fIn.readline().strip('\n'),fIn.readline().strip('\n'),self.lsShared,llMESpec,self.useGS, self.sForm,initialize,self.bExtrap))
+#       read in the variables to pass to the nucleus constructor
+#     constructor signature: __init__(self,  nZ, nA, fGSE, fError,sPath, sMMDR, sPar, lsShared,llMESpec,useGS,sForm,initialize=True, bExtrap=True)
+       nZ=int(fIn.readline())
+       nA=int(fIn.readline())
+       templine=fIn.readline().strip().split()
+       print templine
+       fGSE=float(templine[0])
+       fError=float(templine[1])
+       sMMDR=fIn.readline().strip('\n')
+       sPar=fIn.readline().strip('\n')
+       
+       self.mloNuclei.append(ShellNuclei.nucleus(nZ,nA,fGSE, fError,self.sOutPath, sMMDR, sPar,self.lsShared,llMESpec,self.useGS, self.sForm,initialize,self.bExtrap))
        llStateSpec=[]
        temp=int(fIn.readline())
+
        for iii in range(temp):
-         llStateSpec.append(fIn.readline().strip('\n'))
-#       print llStateSpec
+         line=fIn.readline().strip('\n')
+         line=line.split()
+         llStateSpec.append(line[:3])
+         self.EExp.append(line[3])
+         self.npaErrors.append(line[4])
+
        self.mloNuclei[nIdx].setLevels(llStateSpec)
        self.mloNuclei[nIdx].setmanBody(anBody) 
-#       print self.mloNuclei[nIdx].countOBME()
+     import numpy as np
+     self.npaErrors=np.array(self.npaErrors, dtype=float)
+     self.EExp=np.array(self.EExp, dtype=float)
      fIn.close()
  
 #The objective function takes the array of matrix elements
@@ -516,14 +504,12 @@ class ShellOpt:
            if os.path.isfile(temp+'_'):            
              os.remove(temp+'_')
            os.rename(temp, temp+'_') 
-         #run Shell model calc
-         oNuc.runSM()
-         #get the energy difference for the releveant levels
-       temp=oNuc.Ediff(bTrackDiff=True)
-       for elem in temp:
-         res.append(elem)
-
-     res=np.array(res)     
+       #run Shell model calc
+       oNuc.runSM()
+     #get the energy difference for the releveant levels
+       res.extend(oNuc.getEnNu())
+     res=np.array(res)
+     res=self.EExp-res
      temp=np.sqrt(np.dot(res,res)/float(len(res)))
      if self.track==1:
        self.OptStatus(temp,npaME)
@@ -1055,20 +1041,16 @@ class ShellOpt:
        lnpaShortMonoLab=MatManip.rmSlice(rmList,lnpaShortMonoLab, 0)              
        lnpaMonoJLab=MatManip.rmSlice(rmList,lnpaMonoJLab, 0)
 
-     npaEExp=[]
      npaETh=[]
      
      for nucleus in self.mloNuclei:
-       temp=np.array(nucleus.getEExp(),dtype=float)
        tempth=nucleus.getEnNu()
-       if npaEExp!=[]:
-         npaEExp=np.append(npaEExp,temp,axis=0)
+       if npaETh!=[]:
          npaETh=np.append(npaETh,tempth,axis=0)
        else: 
-         npaEExp=temp
          npaETh=tempth
          
-     target=npaEExp-npaETh
+     target=self.EExp-npaETh
      shortdiff=np.linalg.lstsq(a, target)
      shortdiff=shortdiff[0]
      npaLongMonoLab, longdiff=self.makeLong(lnpaShortMonoLab,lnpaMonoJLab,shortdiff)
@@ -1409,7 +1391,7 @@ import sys
 sys.path.append('c:\\PythonScripts\\NushellScripts\\')
 sys.path.append('C:\PythonScripts\generalmath')
 
-x=ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in','c:\\PythonScripts\\NushellScripts\\test', 'c:\\PythonScripts\\NushellScripts\\errors.dat',initialize=True, conservative=False)
+x=ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in','c:\\PythonScripts\\NushellScripts\\test', 'c:\\PythonScripts\\NushellScripts\\errors.dat',initialize=True)
 #x.checkMonoResponse(fIncLow=0.1, fIncHigh=0.1,nRuns=1,display=True)
 
 #ans, a, target, npaME,lnpaShortMonoLab,lnpaMonoJLab, shortdiff=x.sMono()
@@ -1420,7 +1402,7 @@ x=ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in','c:\\PythonScripts\\
 #x.addMENoise(3.0)
 
 import numpy as np
-base=np.array([[5,5,5,5],[4,4,4,4,],[6,6,6,6],[5,6,5,6]])
+base=np.array([[5,5,5,5],[4,4,4,4,],[6,6,6,6],[5,6,5,6], [5,4,5,4],[4,6,4,6]])
 print x.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=base)
 x.plotResults(sMethod='smono', bError=True)
 

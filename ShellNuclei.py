@@ -13,7 +13,7 @@ import ShellOptFl
 class nucleus(ShellOptFl.MEhandler):
   'class for managing a single nucleus'
 #take the path and create a sub directory for the nucleus and run a default calculation for the nucleus.
-  def __init__(self,  nZ, nA, fGSE,sPath, sMMDR, sPar, lsShared,llMESpec,useGS,sForm,initialize=True, bExtrap=True):
+  def __init__(self,  nZ, nA, fGSE, fError,sPath, sMMDR, sPar, lsShared,llMESpec,useGS,sForm,initialize=True, bExtrap=True):
     import os
     self.sPath=sPath
     self.nAZ=[nA,nZ]    
@@ -28,6 +28,7 @@ class nucleus(ShellOptFl.MEhandler):
     if initialize:
       self.runSM()
     self.fGSE=fGSE
+    self.fError=fError
     self.useGS=useGS
     self.bExtrap=bExtrap
     #initialize the single particle matrix elements
@@ -42,6 +43,7 @@ class nucleus(ShellOptFl.MEhandler):
     fAns.write("--------------------------------------------------\n")
     sForm='{:21s}! '
     sFormN='{:3d}{:18s}! '
+    
     fAns.write(sForm.format('lpe,   2')+'option (lpe or lan), neig (zero=10) \n')
     fAns.write(sForm.format(lsShared[0])+'model space (*.sp) name (a8)\n')
     fAns.write(sForm.format(lsShared[1])+'any restrictions (y/n)\n')
@@ -79,29 +81,32 @@ class nucleus(ShellOptFl.MEhandler):
     sLevName=fIn.readline().strip()
     fIn.close()
     return sLevName
+
+#replace with new code delete after testing
+    
 #  Get the energy diff for the experimental and calculated levels 
-  def Ediff(self, bTrackDiff=False):
-    afETh=self.getEnNu()
-#    print 'Eth',afETh
-    afEExp=self.getEExp()
-#    print  'Eexp',afEExp
-    import numpy as np
-    #check if both the energies were found
-    if len(afEExp)==len(afETh):
-      res=np.absolute(np.array(afEExp)-np.array(afETh))
-    else:
-      #default value 
-      res=np.array([float(abs(len(afEExp)-len(afETh))*100)])
-      print afEExp
-      print afETh
-      print "Error: The number of Theoretical and experimental energies are not the same. Using default value of 100 MeV per missing level."
-    if bTrackDiff:
-      fOut=open(self.sPath+'\\'+self.sName+'\\'+'tracking'+'\\EDiff.dat','a+')
-      fOut.write('Eth'+str(afETh)+'\n')
-      fOut.write('EExp'+str(afEExp)+'\n')
-      fOut.write('Ediff'+str(res)+'\n')      
-      fOut.close()
-    return res
+#  def Ediff(self, bTrackDiff=False):
+#    afETh=self.getEnNu()
+##    print 'Eth',afETh
+#    afEExp=self.getEExp()
+##    print  'Eexp',afEExp
+#    import numpy as np
+#    #check if both the energies were found
+#    if len(afEExp)==len(afETh):
+#      res=np.absolute(np.array(afEExp)-np.array(afETh))
+#    else:
+#      #default value 
+#      res=np.array([float(abs(len(afEExp)-len(afETh))*100)])
+#      print afEExp
+#      print afETh
+#      print "Error: The number of Theoretical and experimental energies are not the same. Using default value of 100 MeV per missing level."
+#    if bTrackDiff:
+#      fOut=open(self.sPath+'\\'+self.sName+'\\'+'tracking'+'\\EDiff.dat','a+')
+#      fOut.write('Eth'+str(afETh)+'\n')
+#      fOut.write('EExp'+str(afEExp)+'\n')
+#      fOut.write('Ediff'+str(res)+'\n')      
+#      fOut.close()
+#    return res
     
 # Get Nushell energies
   def getEnNu(self,bAll=False):
@@ -115,11 +120,6 @@ class nucleus(ShellOptFl.MEhandler):
       line=line.strip().split()
       if bAll==False:
         for lev in self.mllspec:
-          lev=lev.strip().split()
-  #        print '\n'
-  #        print self.sName, lev 
-  #        print line
-  #        print '\n'
           if len(line)>=6 and lev[0]==line[4] and lev[1]==line[1] and lev[2]==line[6]:
             if self.useGS==0:
               afETh.append(float(line[3]))
@@ -145,49 +145,51 @@ class nucleus(ShellOptFl.MEhandler):
     fTh.close()
     return afETh 
 
+#'''this section of code is to be removed after testing experimental energy is 
+#now contained in the shellopt object member variable EExp as specified in the input file'''
 #get experimental energy     
-  def getEExp(self):     
-    import numpy as np
-    sLevName=self.getLevName()
-    afEExp=[]
-#    print self.sPath+'\\'+self.sName+"\\"+sLevName[0:2]+'0'+sLevName[2:4]+'exp.lpt'
-    fExp=open(self.sPath+'\\'+self.sName+"\\"+sLevName[0:2]+'0'+sLevName[2:4]+'exp.lpt')
-    npaJ=np.zeros(len(self.mllspec))
-
-    for line in fExp:
-      line=line.strip().split()
-      for nlevIdx,lev in enumerate(self.mllspec):
-        lev=lev.strip().split()
-#        print '\n\n'
-#        print len(lev[1])
-#        print lev
-#        print '\n\n'
-        for string in line:
-#          print '\n\n'
-#          print len(string)
-#          print len(lev[0])+1
-#          print '\n\n'
-#          print npaJ
-          if len(string)==len(lev[0])+1 and  string[:-1]==lev[0] and string[-1]==lev[2][0]:  
-            npaJ[nlevIdx]+=1
-#            print int(npaJ[nlevIdx]), int(lev[1])
-            if  int(npaJ[nlevIdx])==int(lev[1]):
-#              print 'chck 2 passed'
-              afEExp.append(float(line[0]))
-              break
-    fExp.close()
-#    print afEExp
-    afEExp=np.array(afEExp)
-#    print afEExp
-    if self.useGS==1:
-      afEExp=afEExp+self.fGSE
-#    print afEExp
-#      print self.fGSE
-    if len(afEExp)!=len(self.mllspec):
-      print "Error: # of Experimental levels found does not match requested # in nAZ=", self.nAZ
-      print "Requested:", len(self.mllspec)
-      print "Found:", len(afEExp)
-    return afEExp
+#  def getEExp(self):     
+#    import numpy as np
+#    sLevName=self.getLevName()
+#    afEExp=[]
+##    print self.sPath+'\\'+self.sName+"\\"+sLevName[0:2]+'0'+sLevName[2:4]+'exp.lpt'
+#    fExp=open(self.sPath+'\\'+self.sName+"\\"+sLevName[0:2]+'0'+sLevName[2:4]+'exp.lpt')
+#    npaJ=np.zeros(len(self.mllspec))
+#
+#    for line in fExp:
+#      line=line.strip().split()
+#      for nlevIdx,lev in enumerate(self.mllspec):
+#        lev=lev.strip().split()
+##        print '\n\n'
+##        print len(lev[1])
+##        print lev
+##        print '\n\n'
+#        for string in line:
+##          print '\n\n'
+##          print len(string)
+##          print len(lev[0])+1
+##          print '\n\n'
+##          print npaJ
+#          if len(string)==len(lev[0])+1 and  string[:-1]==lev[0] and string[-1]==lev[2][0]:  
+#            npaJ[nlevIdx]+=1
+##            print int(npaJ[nlevIdx]), int(lev[1])
+#            if  int(npaJ[nlevIdx])==int(lev[1]):
+##              print 'chck 2 passed'
+#              afEExp.append(float(line[0]))
+#              break
+#    fExp.close()
+##    print afEExp
+#    afEExp=np.array(afEExp)
+##    print afEExp
+#    if self.useGS==1:
+#      afEExp=afEExp+self.fGSE
+##    print afEExp
+##      print self.fGSE
+#    if len(afEExp)!=len(self.mllspec):
+#      print "Error: # of Experimental levels found does not match requested # in nAZ=", self.nAZ
+#      print "Requested:", len(self.mllspec)
+#      print "Found:", len(afEExp)
+#    return afEExp
     
       
 #run the shell model calculation        
@@ -350,7 +352,7 @@ class nucleus(ShellOptFl.MEhandler):
           nIdx+=1
           continue
         for nlevIdx,lev in enumerate(self.mllspec):
-          lev=lev.strip().split()
+#          lev=lev.strip().split()
           if int(line[3])==int(2*float(eval(lev[0]+'.0'))) and int(line[1])==int(lev[1]):
             if self.sForm=="pn":
               temp=line[5:5+self.countOBME()]
