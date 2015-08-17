@@ -21,7 +21,8 @@ class nucleus(ShellOptFl.MEhandler):
     if not os.path.exists(sPath+'\\'+self.sName):
       os.makedirs(self.sPath+'\\'+self.sName)
     if not os.path.exists(sPath+'\\'+self.sName+'\\'+'tracking'):
-      os.makedirs(self.sPath+'\\'+self.sName+'\\'+'tracking')  
+      os.makedirs(self.sPath+'\\'+self.sName+'\\'+'tracking')
+    
     self.writeAns(sMMDR, sPar,lsShared)
     self.sInt=lsShared[2]
     self.llMESpec=llMESpec
@@ -44,7 +45,7 @@ class nucleus(ShellOptFl.MEhandler):
     sForm='{:21s}! '
     sFormN='{:3d}{:18s}! '
     
-    fAns.write(sForm.format('lpe,   2')+'option (lpe or lan), neig (zero=10) \n')
+    fAns.write(sForm.format('lpe,   0')+'option (lpe or lan), neig (zero=10) \n')
     fAns.write(sForm.format(lsShared[0])+'model space (*.sp) name (a8)\n')
     fAns.write(sForm.format(lsShared[1])+'any restrictions (y/n)\n')
     fAns.write(sForm.format(lsShared[2])+'interaction (*.int) name (a8)\n')
@@ -56,6 +57,29 @@ class nucleus(ShellOptFl.MEhandler):
     fAns.write("st                   ! option \n")
     fAns.close()
     
+  def changeAns(self):
+    temp=[]
+    for elem in self.mllspec:
+      temp.append(int(elem[-2]))
+    nJMax=max(temp)
+    sInPath=self.sPath+'\\'+self.sName+'\\'+self.sName+'_.ans'
+    sOutPath=self.sPath+'\\'+self.sName+'\\'+self.sName+'.ans'
+    import shutil
+    shutil.copyfile(sOutPath, sInPath)
+    fIn=open(sInPath, 'r')
+    fOut=open(sOutPath, 'w')
+    nIdx=0
+    sFormat='{:4s}{:4d}{:14s}!'
+    for line in fIn:
+      if nIdx==1:
+        fOut.write(sFormat.format('lpe,', nJMax, ' ')+'option (lpe or lan), neig (zero=10) \n')
+      else:
+        fOut.write(line)
+      nIdx+=1
+    import os
+    fIn.close()
+    fOut.close()
+    os.remove(sInPath)
   def writeStatus(self):    
     fOut=open(self.sPath+'\\'+self.sName+'\\'+'tracking'+'\\energy.dat','a+')
     string=''
@@ -74,6 +98,7 @@ class nucleus(ShellOptFl.MEhandler):
   #Store attribute LLspec for later use (separate from initialization)
   def setLevels(self, llSpec):
     self.mllspec=llSpec
+    self.changeAns()
     self.writeStatus()
     
   def getLevName(self):

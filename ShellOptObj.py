@@ -208,7 +208,8 @@ CreateInFile('C:/PythonScripts/NushellScripts/OptInput.in')
 
 class ShellOpt:
    'Class for shell model hamiltonian optimization problems'
-   def __init__(self, sInPath, sOutPath, sErrorPath='', initialize=True):
+   def __init__(self, sInPath, sOutPath, sErrorPath='', initialize=True,fThError=0.07885):
+      self.nDOF=1
 #flag that says to use the groundstate energy in optimization
       self.init=False
       self.useGS=1
@@ -220,8 +221,9 @@ class ShellOpt:
       self.EExp=[]
       self.npaErrors=[]
       #get info from input file and initializes the nuclei objects
-      self.GetIn(initialize)
-      
+      self.GetIn(initialize)  
+      #set a value for the theory error in the determination of the energy levels
+      self.fThError=fThError
       if self.useGS==1:
         import math
         nIdx=0
@@ -240,8 +242,7 @@ class ShellOpt:
       if initialize:
         self.obj(self.mloNuclei[0].getME())
       self.init=True
-#        self.npaErrors.shape=[1,self.npaErrors.size]
-
+      self.EExp.shape=[self.EExp.size,1]
 
 #Write the initial state of the fit          
    def writeLevs(self, path):
@@ -291,14 +292,18 @@ class ShellOpt:
      temp.append('EFinal')
      temp.append('Final-Exp')
      fOut.write(sHFormat.format(*temp))
-     sFormat='{:5}{:5}{:5}{:5}{:5}{:>10}{:>10}{:>10.4f}{:>10.4f}\n'
+     sFormat1='{:5}{:5}{:5}{:5}{:5}'
+     sFormat2='{:>10}'
+     sFormatNew='{:>10.4f}{:>10.4f}\n'
      nIdx=0
      for line in fIn:
        if nIdx >-1:
          temp=line.strip().split()
-         temp.append(npaETh[nIdx])
-         temp.append(npaETh[nIdx]-float(temp[5]))
-         fOut.write(sFormat.format(*temp))
+         sNewLine=sFormat1.format(temp[0],temp[1],temp[2],temp[3],temp[4])
+         for nJIdx in range(len(temp)-5):
+           sNewLine+=sFormat2.format(temp[nJIdx+5])           
+         sNewLine+=sFormatNew.format(npaETh[nIdx],npaETh[nIdx]-float(temp[5]))
+         fOut.write(sNewLine)
        nIdx+=1
      fIn.close()
      fOut.close()
@@ -338,10 +343,20 @@ class ShellOpt:
        elif sMethod=='smono':
          temp=self.sMono(methodArg)
          npaGuess=temp[0]
+       elif sMethod=='csm':
+         temp=self.compositeSingleMono(nMaxIter, fTolin, methodArg)
+         npaGuess=temp[1]
+         print temp 
+         raw_input('eneter')
+         for nucleus in self.mloNuclei:
+           nucleus.llMESpec=temp[2]
+
        print "The guess is",npaGuess
 
        fResNew=self.obj(npaGuess)
-       
+       if type(fResNew)!=float:
+         print 'Error: instance of ''shellopt'' obj method returninng invalid type: ', type(fResNew)
+         
        if sMethod=='smono':
          self.sMonoIterationReport(temp)
 
@@ -365,7 +380,7 @@ class ShellOpt:
      self.dFitInfo['iterations']=nIter
      self.dFitInfo['iteration max']=nMaxIter
      self.dFitInfo['duration']=end-start     
-     return fResNew
+     return fResNew, npaGuess, self.mloNuclei[0].llMESpec
    
    def performOptimization(self, sMethod='Nelder-Mead', dOptions=None):
 #Take the monopole matrix element only     
@@ -482,7 +497,7 @@ class ShellOpt:
          self.EExp.append(line[3])
          self.npaErrors.append(line[4])
 
-       self.mloNuclei[nIdx].setLevels(llStateSpec)
+       self.mloNuclei[nIdx].setLevels(llStateSpec)       
        self.mloNuclei[nIdx].setmanBody(anBody) 
      import numpy as np
      self.npaErrors=np.array(self.npaErrors, dtype=float)
@@ -495,8 +510,14 @@ class ShellOpt:
      res=[]
      for oNuc in self.mloNuclei:
        #write ME to file
-       if self.init==True:
-         oNuc.takeME(npaME)
+       if self.init:
+         try:
+           oNuc.takeME(npaME)
+         except:
+           print npaME
+           print 'Error: The Matrixe element list is invalid.'
+           print npaME
+           return 'Error: The Matrixe element list is invalid.'
          if self.sForm=='pn':
            import os
            sLevName=oNuc.getLevName()
@@ -509,17 +530,38 @@ class ShellOpt:
      #get the energy difference for the releveant levels
        res.extend(oNuc.getEnNu())
      res=np.array(res)
+     res.shape=[res.size,1]
+     self.EExp.shape=[self.EExp.size,1]
      res=self.EExp-res
-     temp=np.sqrt(np.dot(res,res)/float(len(res)))
+     
+     temp=np.sqrt(np.dot(np.transpose(res),res)/float(len(res)))
+     fChiSq=[]
+    
+     for num,err in zip(res, self.npaErrors):
+       fChiSq.append(num/np.sqrt(err**2+self.fThError**2))
+  
+     fChiSq=np.array(fChiSq)
+     fChiSq.shape=[fChiSq.size, 1]
+     fChiSq=np.sqrt(np.dot(np.transpose(fChiSq),fChiSq))/float(self.nDOF)
+     fChiSq=float(fChiSq[0,0])
+
+     temp.shape=[temp.size]
+     temp=float(temp[0])
      if self.track==1:
-       self.OptStatus(temp,npaME)
-     return temp   
+       self.OptStatus(temp, fChiSq,npaME)    
+     return temp
  #
-   def OptStatus(self,res, npaME):
+   def OptStatus(self,res, fChiSq,npaME):
+       sFormat='{:14.10f}'
        fOut=open(self.sOutPath+'\\'+'tracking'+'\\res.dat','a+')
-       fOut.write(str(res)+'\n')
+       fOut.write(sFormat.format(res)+'\n')
        fOut.close()
        
+       if self.init:
+         fOut=open(self.sOutPath+'\\'+'tracking'+'\\chisq.dat','a+')
+         fOut.write(sFormat.format(fChiSq)+'\n')
+         fOut.close()
+         
        fOut=open(self.sOutPath+'\\'+'tracking'+'\\ME.dat','a+')
        string=''
        sFormME='{:10.4f}\t'
@@ -545,7 +587,6 @@ class ShellOpt:
      import numpy
 
      a=[]
-     npaEExp=[]
      npaETh=[]
      for nucleus in self.mloNuclei:
        fIn=open(nucleus.sPath+'\\'+nucleus.sName+"\\list.lpt")
@@ -555,13 +596,10 @@ class ShellOpt:
          a=numpy.append(a,nucleus.getOcc(sLevName),axis=0)
        else:
          a=numpy.array(nucleus.getOcc(sLevName))
-       temp=numpy.array(nucleus.getEExp(),dtype=float)
        tempth=nucleus.getEnNu()
-       if npaEExp!=[]:
-         npaEExp=numpy.append(npaEExp,temp,axis=0)
+       if npaETh!=[]:
          npaETh=numpy.append(npaETh,tempth,axis=0)
        else: 
-         npaEExp=temp
          npaETh=tempth
 
      import sys
@@ -569,11 +607,6 @@ class ShellOpt:
      import MatManip
 #get the zero cols of the matrix
      rmList=MatManip.getZeroCols(a)
-#add to rmList the cols for poorly determined ME
-#     temp=self.getBadCol(a)
-#     rmList.extend(temp)
-#     rmList=sorted(list(set(rmList)))
-#     print rmList
      if rmList!=[]:
        a=MatManip.rmSlice(rmList, a, 1)
 
@@ -593,7 +626,8 @@ class ShellOpt:
            else:
              npaTBLab=numpy.array(elem, dtype=int)
              npaTBLab.shape=[1, npaTBLab.size]
-#       print lsOBLab
+       print lsOBLab
+       raw_input('enter...')
        for nucleus in self.mloNuclei:
          nucleus.llMESpec[0]=lsOBLab
          nucleus.setMEnum()
@@ -603,13 +637,12 @@ class ShellOpt:
      npaETh.shape=[npaETh.size,1]
      Hexpect=npaETh-numpy.dot(a,obme)
 #     print 'Hexpect.shape',Hexpect.shape
-     npaEExp.shape=[npaEExp.size,1]
-     target=npaEExp-Hexpect
-
-     npaWeights=numpy.zeros([npaEExp.size,npaEExp.size])
-     for nIdx, elem in enumerate(self.npaErrors):
+     target=self.EExp-Hexpect
+     
+#     npaWeights=numpy.zeros([self.EExp.size,self.EExp.size])
+#     for nIdx, elem in enumerate(self.npaErrors):
 #       print elem
-       npaWeights[nIdx,nIdx]=1.0/(elem**2)
+#       npaWeights[nIdx,nIdx]=1.0/(elem**2)
 
       #adjust for weighted least squares
 #     a=numpy.dot(npaWeights, a)
@@ -617,8 +650,7 @@ class ShellOpt:
       #end adjust for weighted least squares
      ans=numpy.linalg.lstsq(a, target)
      ans=ans[0]
-     
-     return ans, a, target, obme
+     return ans, a, target, obme, self.mloNuclei[0].llMESpec[0]
 #returns list of non super diagonal matrix elements
 #     used to test convergence of iterative scheme when there is little data
    def getNonSuDi(self):
@@ -999,16 +1031,20 @@ class ShellOpt:
           bAddIt=False
       if bAddIt:
         temp.append(lnpaShortMonoLab[i])
+
      import copy
-     lnpaShortMonoLab=copy.copy(temp)              
+     lnpaShortMonoLab=copy.copy(temp)
      lnpaMonoJLab=[]
+
      for shortLab in lnpaShortMonoLab:
        temp=[]
        for fullLab in npaFullMonoLab:
          if np.all(shortLab==fullLab[:-2]):
            temp.append(fullLab[-2:])
        lnpaMonoJLab.append(temp)
+
      a=[]
+
      for nucleus in self.mloNuclei:
        npaOcc=nucleus.getOcc(nucleus.getLevName())
        temp2=[]
@@ -1030,6 +1066,7 @@ class ShellOpt:
          a=np.array(temp2,dtype=float)
        else:
          a=np.append(a,temp2, axis=0)
+
      import MatManip
      rmList=MatManip.getZeroCols(a)
      #convert lnpaShortmonolab to nparray to use the rmslice utility in matmanip
@@ -1049,18 +1086,36 @@ class ShellOpt:
          npaETh=np.append(npaETh,tempth,axis=0)
        else: 
          npaETh=tempth
-         
+
+     self.EExp.shape=[self.EExp.size,1]
+     npaETh.shape=[npaETh.size,1]
      target=self.EExp-npaETh
-     shortdiff=np.linalg.lstsq(a, target)
-     shortdiff=shortdiff[0]
+     target.shape=[target.size,1]
+     
+#     #start linear least squares
+#     shortdiff=np.linalg.lstsq(a, target)
+#     #end linear least squares
+
+#    #start weighted least square
+     npaWeights=np.zeros([self.EExp.size,self.EExp.size])
+     for nIdx, elem in enumerate(self.npaErrors):
+#       print elem
+       npaWeights[nIdx,nIdx]=1.0/(elem**2+self.fThError**2)
+     shortdiff=np.linalg.lstsq(np.dot(npaWeights, a), np.dot(npaWeights, target))
+#    #end weighted least squares
+
+     shortdiff=shortdiff[0] 
      npaLongMonoLab, longdiff=self.makeLong(lnpaShortMonoLab,lnpaMonoJLab,shortdiff)
+
      for nucleus in self.mloNuclei:
-      nucleus.llMESpec[1]=npaLongMonoLab
-      nucleus.llMESpec[0]=[]
-      self.mloNuclei[0].setMEnum()
+       nucleus.llMESpec[1]=npaLongMonoLab
+       nucleus.llMESpec[0]=[]
+       self.mloNuclei[0].setMEnum()
+
      npaME=self.mloNuclei[0].getME()
-     ans=npaME+longdiff
-     return ans, a, target, npaME,lnpaShortMonoLab,lnpaMonoJLab, shortdiff 
+     npaME+=longdiff
+     self.nDOF=a.shape[0]-shortdiff.size
+     return npaME, a, target, npaME,lnpaShortMonoLab,lnpaMonoJLab, shortdiff, self.mloNuclei[0].llMESpec[1] 
 
    #make the long labels and diff
    def makeLong(self,lnpaShortMonoLab,lnpaMonoJLab,shortdiff):
@@ -1140,7 +1195,7 @@ class ShellOpt:
      if not os.path.isdir(path):
        os.makedirs(sIsoPath)
        os.makedirs(sMonoPath)
-
+    
      sIsoForm='{:10}{:10.4f}{:10.4f}{:10.4f}\n'
      sIsoHeadForm='{:10}{:10}{:10}{:10}\n'
     
@@ -1333,7 +1388,10 @@ class ShellOpt:
      else:
        fOut=open(sMonoOutPath+'MonoDiff.dat','a+')
      line=''
-     for elem in Output[6]:
+     temp=Output[6]
+     temp.shape=[Output[6].size]
+     for elem in temp:
+       print type(elem), elem
        line+=sFormat.format(elem)
      fOut.write(line+'\n')
      fOut.close()
@@ -1378,11 +1436,30 @@ class ShellOpt:
        fOut.write(line+'\n')
      fOut.close()
 
+   def multiMono(self, nMaxIter, fTolIn, lnpaBases):
+     import numpy as np
+     npaME=[]
+     npaTBMESpec=[]
+     for npaBase in lnpaBases:
+       temp=self.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=nMaxIter, fTolin=fTolIn, methodArg=npaBase)
+       if len(npaME)!=0:
+         npaME=np.append(npaME,temp[1],axis=0)
+         npaTBMESpec=np.append(npaTBMESpec, temp[-1][1])
+       else:
+         npaME=temp[1]
+         npaTBMESpec=temp[-1][1]
+       return temp[0], npaME, npaTBMESpec
+
+   def compositeSingleMono(self, nMaxIter, fTolIn, lnpaBases):
+     temp=self.IterativeLSq(sMethod='single',bMix=False, nMaxIter=nMaxIter, fTolin=fTolIn)
+     llMESpec=temp[-1]
+     npaME=temp[1]
+     temp=self.multiMono(nMaxIter, fTolIn, lnpaBases)
+     llMESpec.append(temp[-1])
+     npaME=np.append(npaME,temp[1])
+     res=temp[0]
+     return res, npaME, llMESpec
      
-     
-       
-  
-         
 ##########################################################         
 '''
 Start testing code
@@ -1402,9 +1479,22 @@ x=ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in','c:\\PythonScripts\\
 #x.addMENoise(3.0)
 
 import numpy as np
-base=np.array([[5,5,5,5],[4,4,4,4,],[6,6,6,6],[5,6,5,6], [5,4,5,4],[4,6,4,6]])
+#print x.IterativeLSq(sMethod='single',bMix=False, nMaxIter=60, fTolin=10**-2)
+base=np.array([[5,5,5,5],[4,4,4,4,],[6,6,6,6]])
 print x.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=base)
-x.plotResults(sMethod='smono', bError=True)
+#base=np.array([[5,6,5,6], [5,4,5,4],[4,6,4,6]])
+#print x.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=base)
+#print x.IterativeLSq(sMethod='single',bMix=False, nMaxIter=60, fTolin=10**-2)
+#base=np.array([[5,5,5,5],[4,4,4,4,],[6,6,6,6]])
+#print x.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=base)
+#base=np.array([[5,6,5,6], [5,4,5,4],[4,6,4,6]])
+#print x.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=base)
+#x.plotResults(sMethod='smono', bError=True)
+#
+#import numpy as np
+#lnpaBases=[np.array([[5,5,5,5],[4,4,4,4,],[6,6,6,6]]),np.array([[5,6,5,6], [5,4,5,4],[4,6,4,6]])]
+#print x.IterativeLSq(sMethod='csm',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=lnpaBases)
+
 
 #x.performOptimization()
 #x.sMethod='single'
