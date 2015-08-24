@@ -13,7 +13,7 @@ import ShellOptFl
 class nucleus(ShellOptFl.MEhandler):
   'class for managing a single nucleus'
 #take the path and create a sub directory for the nucleus and run a default calculation for the nucleus.
-  def __init__(self,  nZ, nA, fGSE, fError,sPath, sMMDR, sPar, lsShared,llMESpec,useGS,sForm,initialize=True, bExtrap=True):
+  def __init__(self,  nZ, nA, fGSE, fError, sPath, sMMDR, sPar, lsShared,llMESpec,useGS,sForm,initialize=True, bExtrap=True):
     import os
     self.sPath=sPath
     self.nAZ=[nA,nZ]    
@@ -585,3 +585,9 @@ class nucleus(ShellOptFl.MEhandler):
       elif np.all(npaDat==np.array([])):
         npaDat=np.array(line)
     return npaDat
+
+# get rid of the interaction file and rerun the shell model calulation
+  def reinitialize(self):
+    import os
+    os.remove(self.makeIntPath(''))
+    self.runsm()
