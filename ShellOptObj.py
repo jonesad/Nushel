@@ -247,7 +247,7 @@ class ShellOpt:
                 os.makedirs(self.sOutPath+'\\'+'tracking')
             if initialize:
                 self.writeLevs(self.sOutPath+'\\'+'tracking\\')
-
+            self.llLastMESpec = [[], []]
             if initialize:
                 self.obj(self.mloNuclei[0].getME())
             self.init = True
@@ -301,7 +301,7 @@ class ShellOpt:
         temp.append('EFinal')
         temp.append('Final-Exp')
         fOut.write(sHFormat.format(*temp))
-        sFormat1 = '{:5}{:5}{:5}{:5}{:5}'
+        sFormat1 = '{:5}{:5}{:5}{:5}{:5}{:>10}{:>10}'
         sFormat2 = '{:>10}'
         sFormatNew = '{:>10.4f}{:>10.4f}'
         nIdx = 0
@@ -309,11 +309,16 @@ class ShellOpt:
             if nIdx > -1:
                 temp = line.strip().split()
                 sNewLine = sFormat1.format(temp[0], temp[1], temp[2], temp[3],
-                                           temp[4], temp[5])
-                for nJIdx in range(len(temp)-6):
-                    sNewLine += sFormat2.format(temp[nJIdx + 6])
+                                           temp[4], temp[5], temp[6])
+                for nJIdx in range(len(temp)-7):
+                    sNewLine += sFormat2.format(temp[nJIdx + 7])
+                if len(temp)>7:
                     sNewLine += sFormatNew.format(npaETh[nIdx], npaETh[nIdx] -
-                                                  float(temp[6]))
+                                                  float(temp[-2]))
+                else:
+                    sNewLine += sFormatNew.format(npaETh[nIdx], npaETh[nIdx] -
+                                                  float(temp[-1]))
+                      
                 fOut.write(sNewLine + '\n')
             nIdx += 1
         fIn.close()
@@ -357,6 +362,7 @@ class ShellOpt:
             elif sMethod == 'smono':
                 temp = self.sMono(methodArg)
                 npaGuess = temp[0]
+                npaShortMono = temp[4]
             elif sMethod == 'csm':
                 temp = self.compositeSingleMono(nMaxIter, fTolin, methodArg)
                 npaGuess = temp[1]
@@ -367,11 +373,12 @@ class ShellOpt:
                 break
             print "The guess is", npaGuess
             fResNew = self.obj(npaGuess)
+            raw_input('nIter='+str(nIter)+' press enter')
             if type(fResNew) != float:
                 print ('Error: instance of ''shellopt'' obj method ' +
                        'returning invalid type: '), type(fResNew)
             if sMethod == 'smono':
-                self.sMonoIterationReport(temp)
+                self.sMonoIterationReport(temp, npaShortMono)
             lRes[0] = fResNew
             lME[0] = npaGuess
             nIter += 1
@@ -429,7 +436,7 @@ class ShellOpt:
         import MatManip
 
         SPRMList = MatManip.getZeroCols(npaSPOcc)
-        lNewSPList = range(self.mloNuclei[0].countOBME())
+        lNewSPList = np.array(range(self.mloNuclei[0].countOBME()))
         lNewSPList = MatManip.rmSlice(SPRMList, lNewSPList, 0)
         MonoRMList = MatManip.getZeroCols(npaMono)
         origTBME = numpy.array(self.mloNuclei[0].llMESpec[1])
@@ -441,7 +448,7 @@ class ShellOpt:
                                                        0))
             else:
                 temp = self.makeLong(lnpaShortMonoLab, lnpaMonoJLab,
-                                     np.zeros(lnpaShortMonoLab.shape))
+                                     np.zeros(len(lnpaShortMonoLab)))
                 newTBME = temp[0]
         for nucleus in self.mloNuclei:
             nucleus.llMESpec[0] = lNewSPList
@@ -454,19 +461,31 @@ class ShellOpt:
                            options=dOptions)
         else:
             npaGuess = self.mloNuclei[0].getOBME()
-            npaGuess = np.append(npaGuess, np.zeros(newTBME.shape))
-            res = minimize(self.objSMonoNonLinear, npaGuess, method=sMethod,
+            npaGuess = np.append(npaGuess, np.zeros(len(llMonoBase)))
+            newObj = lambda x: self.objSMonoNonLinear(x, lnpaShortMonoLab,
+                                                      lnpaMonoJLab)
+            res = minimize(newObj, npaGuess, method=sMethod,
                            options=dOptions)
         print res
         self.updateLevs(self.sOutPath+'\\'+'tracking\\')
 
 #   non linear objective function for fitting the summed monopole matrix
-#   elements. Take the npa uess composed of the single particle energies 
-#   followed by the monopole matrix element differences. Then use the short 
+#   elements. Take the npa uess composed of the single particle energies
+#   followed by the monopole matrix element differences. Then use the short
 #   mono lab and the jlab to make the long list of differneces. Then use that
 #    to make the guess for the original objective function
-    def objSMonoNonLinear(self, npaGuess, npaShortmonoLab, npaJLab):
-        
+    def objSMonoNonLinear(self, npaGuess, npaShortMonoLab, npaJLab):
+        shortdiff = npaGuess[-len(npaShortMonoLab):]
+        npaLongMonoLab, longdiff = self.makeLong(npaShortMonoLab,
+                                                 npaJLab, shortdiff)
+        npaOldTBME = self.mloNuclei[0].getTBME()
+        longdiff.shape = npaOldTBME.shape
+        npaNewTBME = npaOldTBME + longdiff
+        import copy
+        npaNewGuess = np.append(copy.copy(npaGuess[:-len(npaShortMonoLab)]),
+                                npaNewTBME)
+        return self.obj(npaNewGuess)
+
     def GetIn(self, initialize=True):
         import ShellNuclei
         fIn = open(self.sInPath, 'r')
@@ -597,10 +616,23 @@ class ShellOpt:
             fOut.close()
         fOut = open(self.sOutPath+'\\tracking\\ME.dat', 'a+')
         string = ''
-        sFormME = '{:10.4f}\t'
+        sFormMELab = '{:>13}\t'
+        sFormME = '{:13.4f}\t'
+        import numpy as np
+        bSPEequal = np.all(np.array(self.llLastMESpec[0]) ==
+                           np.array(self.mloNuclei[0].llMESpec[0]))
+        bTBMEequal = np.all(np.array(self.llLastMESpec[1]) ==
+                            np.array(self.mloNuclei[0].llMESpec[1]))
+        if not (bSPEequal and bTBMEequal):
+            for elem in self.mloNuclei[0].llMESpec:
+                for lab in elem:
+                    string += sFormMELab.format(lab)
+            fOut.write(string + '\n')
+            self.llLastMESpec = [elem for elem in self.mloNuclei[0].llMESpec]
+        string = ''
         for elem in npaME:
             string = string + sFormME.format(float(elem))
-            fOut.write(string + '\n')
+        fOut.write(string + '\n')
         fOut.close()
         fOut = open(self.sOutPath + '\\tracking\\AllME.dat', 'a+')
         npaAllME = self.mloNuclei[0].getME(bAll=True)
@@ -608,7 +640,7 @@ class ShellOpt:
         string = ''
         for elem in npaAllME:
             string = string + sFormME.format(elem)
-            fOut.write(string + '\n')
+        fOut.write(string + '\n')
         fOut.close()
         for oNucleus in self.mloNuclei:
             oNucleus.writeStatus()
@@ -1001,7 +1033,7 @@ class ShellOpt:
 # get full mono labels and split into monopole labels and jlabels
     def constructMonoLists(self, npaMonoList):
         npaFullMonoLab = self.mloNuclei[0].getMonoLabel(npaMonoList)
-        lnpaShortMonoLab = [npaFullMonoLab[:, :4]
+        lnpaShortMonoLab = [npaFullMonoLab[i][:4]
                             for i in range(npaFullMonoLab.shape[0])]
         temp = []
         import numpy as np
@@ -1010,9 +1042,8 @@ class ShellOpt:
             for elem in temp:
                 if np.all(lnpaShortMonoLab[i] == elem):
                     bAddIt = False
-        if bAddIt:
-            temp.append(lnpaShortMonoLab[i])
-
+            if bAddIt:
+                temp.append(lnpaShortMonoLab[i])
         import copy
         lnpaShortMonoLab = copy.copy(temp)
         lnpaMonoJLab = []
@@ -1029,6 +1060,7 @@ class ShellOpt:
     def sMono(self, npaMonoList=[]):
         lnpaShortMonoLab, lnpaMonoJLab = self.constructMonoLists(npaMonoList)
         a = []
+        import numpy as np
         for nucleus in self.mloNuclei:
             npaOcc = nucleus.getOcc(nucleus.getLevName())
             temp2 = []
@@ -1091,7 +1123,7 @@ class ShellOpt:
             self.mloNuclei[0].setMEnum()
         npaME = self.mloNuclei[0].getME()
         npaME += longdiff
-        self.nDOF = a.shape[0] - shortdiff.size
+        self.nDOF = a.shape[0] - shortdiff.size - 1
         return (npaME, a, target, npaME, lnpaShortMonoLab, lnpaMonoJLab,
                 shortdiff, self.mloNuclei[0].llMESpec[1])
 
@@ -1337,7 +1369,7 @@ class ShellOpt:
                 plt.show()
 
 # code to update a report on each iteration
-    def sMonoIterationReport(self, Output):
+    def sMonoIterationReport(self, Output, npaShortMono):
         '''
             Output=[ 0 ans, 1 a, 2 target, 3 npaME,4 lnpaShortMonoLab,
                     5 lnpaMonoJLab, 6 shortdiff]
@@ -1354,7 +1386,7 @@ class ShellOpt:
             sLine = ''
             for elem in line:
                 sLine += sFormat.format(elem)
-                fOut.write(sLine + '\n')
+            fOut.write(sLine + '\n')
         fOut.close()
 #     Write the monodiff
         if not os.path.isfile(sMonoOutPath+'MonoDiff.dat'):
@@ -1362,7 +1394,7 @@ class ShellOpt:
             line = ''
             for elem in Output[4]:
                 line += '{:>10}'.format(str(elem))
-                fOut.write(line + '\n')
+            fOut.write(line + '\n')
         else:
             fOut = open(sMonoOutPath + 'MonoDiff.dat', 'a+')
             line = ''
@@ -1370,7 +1402,7 @@ class ShellOpt:
             temp.shape = [Output[6].size]
             for elem in temp:
                 line += sFormat.format(elem)
-                fOut.write(line + '\n')
+            fOut.write(line + '\n')
         fOut.close()
 # write the expected energy change and the obtained energy change
         if not os.path.isfile(sMonoOutPath + 'En.dat'):
@@ -1413,6 +1445,29 @@ class ShellOpt:
             line = sFormat.format(float(expect), float(obtain),
                                   float(expect) - float(obtain))
             fOut.write(line + '\n')
+        fOut.close()
+        fOut = open(sMonoOutPath + 'combined.dat', 'w')
+        lLS = []
+        lAZ = []
+        for nucleus in self.mloNuclei:
+            lLS.extend(nucleus.mllspec)
+            lAZ.extend([nucleus.nAZ]*len(nucleus.mllspec))
+        sHFormat = '{:10}{:5}{:5}{:5}{:>10}'
+        sHExt = '{:>15}'
+        sLine = sHFormat.format('[A,Z]', 'J', 'nJ', 'P', 'Exp-Theory')
+        for label in npaShortMono:
+            sLine += sHExt.format(label)
+        fOut.write(sLine + '\n')
+        sFormat = '{:10}{:5}{:5}{:5}{:10.4f}'
+        sFormExt = '{:>15.4f}'
+# print lAZ, lLS, npaEExp.shape, npaETh.shape
+        for AZ, LS, Exp, Th, row in zip(lAZ, lLS, self.EExp, lfNewEn,
+                                        Output[1]):
+            sLine = sFormat.format(AZ, LS[0], LS[1], LS[2], float(Exp) -
+                                   float(Th))
+            for elem in row:
+                sLine += sFormExt.format(elem)
+            fOut.write(sLine + '\n')
         fOut.close()
 
     def multiMono(self, nMaxIter, fTolIn, lnpaBases):
@@ -1489,23 +1544,22 @@ x = ShellOpt('c:\\PythonScripts\\NushellScripts\\OptInput.in',
 
 
 import numpy as np
-print x.IterativeLSq(sMethod='single',bMix=False, nMaxIter=60, fTolin=10**-2)
-base=np.array([[5,5,5,5],[4,4,4,4,],[6,6,6,6]])
-print x.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=base)
-base=np.array([[5,6,5,6], [5,4,5,4],[4,6,4,6]])
-print x.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=base)
-print x.IterativeLSq(sMethod='single',bMix=False, nMaxIter=60, fTolin=10**-2)
-base=np.array([[5,5,5,5],[4,4,4,4,],[6,6,6,6]])
-print x.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=base)
-base=np.array([[5,6,5,6], [5,4,5,4],[4,6,4,6]])
-print x.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=base)
+#print x.IterativeLSq(sMethod='single',bMix=False, nMaxIter=60, fTolin=10**-2)
+base1=np.array([[5,5,5,5],[4,4,4,4],[6,6,6,6],[5,6,5,6]])
+print x.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=base1)
+#base2=np.array([[5,6,5,6], [5,4,5,4],[4,6,4,6]])
+#print x.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=base2)
+#
+#dOptions = {'disp':True, 'xtol':10**-2, 'ftol':10**-2, 'maxiter':None,
+#            'MaxFeval': 100}
+#print x.performOptimization(sMethod='Nelder-Mead', llMonoBase=np.append(base1,base2,axis=0),
+#                            dOptions=dOptions)
 x.plotResults(sMethod='smono', bError=True)
 
 #
 #import numpy as np
 #lnpaBases=[np.array([[5,5,5,5],[4,4,4,4,],[6,6,6,6]]),np.array([[5,6,5,6], [5,4,5,4],[4,6,4,6]])]
 #print x.IterativeLSq(sMethod='csm',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=lnpaBases)
-
 
 #x.performOptimization()
 #x.sMethod='single'
@@ -1517,14 +1571,16 @@ x.plotResults(sMethod='smono', bError=True)
 #nStop=8
 #x.mloNuclei[1].plotEthError(lHist[:nStop], lBins[:nStop], lMu[:nStop], lSigma[:nStop], nSize)
 
-#test the fortran fitting method
+# test the fortran fitting method
 #sys.path.append('C:\\PythonScripts\\assorted\\')
 #import os
 #import fortfitinterface
 #os.chdir('C:\\PythonScripts\\assorted\\drop\\')
-#ans, a, target, npaME,lnpaShortMonoLab,lnpaMonoJLab, shortdiff=x.sMono()
-#fakellnAZ=[ [1,1] for i in range(a.shape[0])]
+#ans, a, target, npaME, lnpaShortMonoLab, lnpaMonoJLab, shortdiff, npaTBME = x.sMono()
+#fakellnAZ = [[1,1] for i in range(a.shape[0])]
 #import numpy as np 
-#weight= np.ones(target.shape)
-#fortfitinterface.makeDatFile('C:\\PythonScripts\\assorted\\drop',fakellnAZ,target,weight,a)
+## weight= np.ones(target.shape)
+#weight = 1.0 / (x.npaErrors**2 + x.fThError**2)
+#fortfitinterface.makeDatFile('C:\\PythonScripts\\assorted\\drop', fakellnAZ,
+#                             target, weight, a)
 #os.system('fit')

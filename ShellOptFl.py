@@ -210,7 +210,7 @@ class MEhandler:
               nElem=nElem+1
               break
         nUnCm+=1
-    if (not bAll and len(npaME)!=nElem):
+    if (not bAll and self.llMESpec[1].shape[0]!=len(npaME)):
       raw_input('Warning expected: '+str(self.llMESpec[1].shape[0])+' ME. But found: '+ str(len(npaME)))        
     fIntSrc.close()
     return np.array(npaME,dtype=float)
