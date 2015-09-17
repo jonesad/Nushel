@@ -29,7 +29,11 @@ class nucleus(OxbashOptFl.MEhandler):
     self.fError = fError
     self.useGS = useGS
     self.bExtrap = bExtrap
-    self.sIsospin = str(self.nAZ[0]-2*self.nAZ[1])+'/2'
+    temp = self.nAZ[0]-2*self.nAZ[1]
+    if temp % 2 == 0:
+        self.sIsospin = str(int(temp/2))
+    else:
+        self.sIsospin = str(temp) + '/2'
     self.nVal = nVal
     self.sName = 'A' + str(nA) + '_Z' + str(nZ)
     self.sMS = lsShared[0]
@@ -42,13 +46,13 @@ class nucleus(OxbashOptFl.MEhandler):
     self.sInt = lsShared[2]
     self.llMESpec = llMESpec
     self.mllspec = llStateSpec
-    if initialize:
-        self.runSM()
-    self.writeStatus()
-# copy the interaction to the working directory
+    # copy the interaction to the working directory
     import shutil
     shutil.copyfile(sOBDir + '\\sps\\' + self.sInt+'.int', self.sPath + '\\' +
                     self.sName + '\\' + self.sInt + '.int')
+    if initialize:
+        self.runSM()
+    self.writeStatus()
 # initialize the single particle matrix elements
     if len(llMESpec[0]) == 0:
         self.llMESpec[0] = range(1, self.countOBME() + 1)
@@ -95,32 +99,6 @@ class nucleus(OxbashOptFl.MEhandler):
     name = 'A' + str(self.nAZ[0]) + '_Z' + str(self.nAZ[1]) + '.lpt'
     return name
 
-#replace with new code delete after testing
-    
-#  Get the energy diff for the experimental and calculated levels 
-#  def Ediff(self, bTrackDiff=False):
-#    afETh=self.getEnNu()
-##    print 'Eth',afETh
-#    afEExp=self.getEExp()
-##    print  'Eexp',afEExp
-#    import numpy as np
-#    #check if both the energies were found
-#    if len(afEExp)==len(afETh):
-#      res=np.absolute(np.array(afEExp)-np.array(afETh))
-#    else:
-#      #default value 
-#      res=np.array([float(abs(len(afEExp)-len(afETh))*100)])
-#      print afEExp
-#      print afETh
-#      print "Error: The number of Theoretical and experimental energies are not the same. Using default value of 100 MeV per missing level."
-#    if bTrackDiff:
-#      fOut=open(self.sPath+'\\'+self.sName+'\\'+'tracking'+'\\EDiff.dat','a+')
-#      fOut.write('Eth'+str(afETh)+'\n')
-#      fOut.write('EExp'+str(afEExp)+'\n')
-#      fOut.write('Ediff'+str(res)+'\n')      
-#      fOut.close()
-#    return res
-    
 # Get Nushell energies
   def getEnNu(self,bAll=False):
     sLevName=self.getLevName()
@@ -133,7 +111,7 @@ class nucleus(OxbashOptFl.MEhandler):
       line=line.strip().split()
       if bAll==False:
         for lev in self.mllspec:
-          if len(line)>=6 and lev[0]==line[4] and lev[1]==line[1] and lev[2]==line[6]:
+          if len(line)==7 and lev[0]==line[4] and lev[1]==line[1] and lev[2]==line[6]:
             if self.useGS==0:
               afETh.append(float(line[3]))
             elif self.useGS==1:
@@ -152,9 +130,6 @@ class nucleus(OxbashOptFl.MEhandler):
       print "Error: # of Theory levels found does not match requested # in nAZ=", self.nAZ
       print "Requested:", len(self.mllspec)
       print "Found:", len(afETh)
-#    print afETh
-#    raw_input("Press Enter to continue...")
-    
     fTh.close()
     return afETh 
 
@@ -166,7 +141,7 @@ class nucleus(OxbashOptFl.MEhandler):
     os.system('shell '+self.sName+'.ans')
     os.system(self.sName)
     self.writeEnergies()
-
+    self.writeOcc()
 
 #monopole term calculation works with p-n formalism matrix element labels
   def calcMonoOcc(self):
@@ -183,13 +158,6 @@ class nucleus(OxbashOptFl.MEhandler):
     for nLevIdx in range(npaMono.shape[0]):    
       nMono=0
       for nIdx in range(npaLabel.shape[0]):        
-#        print npaLabel[nLevIdx,1], npaLabel[nLevIdx,3]
-#        print npaLabel[nLevIdx,1]==npaLabel[nLevIdx,3]
-#        print npaLabel[nLevIdx,0], npaLabel[nLevIdx,2]
-#        print npaLabel[nLevIdx,0]==npaLabel[nLevIdx,2]
-#        print npaLabel[nLevIdx,4]
-#        print npaLabel[nLevIdx,:]
-#        if npaLabel[nIdx,1]==npaLabel[nIdx,3] and npaLabel[nIdx,0]==npaLabel[nIdx,2] and npaLabel[nIdx,4]!=0:
         if np.all(npaLabel[nIdx]==npaMonoLabel[nMono]):
           temp=float(2*(npaLabel[nIdx,4]+1))
 #          test to see what the largest angular momentum is
@@ -201,32 +169,13 @@ class nucleus(OxbashOptFl.MEhandler):
             nSPEIdx=int(npaLabel[nIdx,0])-1+npaLabel[nIdx,-1]*self.countOBME()
           if npaLabel[nIdx,0]!=npaLabel[nIdx,1]:
             npaMono[nLevIdx,nMono]+=npaOcc[nLevIdx,nSPEIdx]*npaOcc[nLevIdx,nSPEIdx]*temp
-#            print npaLabel[nIdx,0],npaOcc[nLevIdx,int(npaLabel[nIdx,0]-1)]        
-#            print npaLabel[nIdx,2],npaOcc[nLevIdx,int(npaLabel[nIdx,2]-1)]
-#            print '\n'
           else:            
             npaMono[nLevIdx,nMono]+=npaOcc[nLevIdx,nSPEIdx]*(npaOcc[nLevIdx,nSPEIdx]-1.0)*temp/2.0
-#            print npaLabel[nIdx,0],npaOcc[nLevIdx,int(npaLabel[nIdx,0]-1)]        
-#            print npaLabel[nIdx,2],npaOcc[nLevIdx,int(npaLabel[nIdx,2]-1)]
-#            print '\n'
           denom[nLevIdx,nMono]+=temp
-#          print 'j*(j+1)=', temp
           nMono+=1
           if nMono>=npaMonoLabel.shape[0]:
             break
-#    print denom
-#    raw_input("Press enter to continue...")
     npaMono=np.divide(npaMono,denom)
-#    jsum=0
-#    for num in range(int(jmax)+ 1):
-#      jsum+=2*num+1
-#    npaMono=np.divide(npaMono,jsum)
-#    print 'max',jmax
-#    print 'sum',jsum
-#    raw_input("Press enter to continue...")
-            
-#    print npaMono.max()
-#    print npaMono
     return npaMono    
 
     #monopole term calculation works with p-n formalism matrix element labels
@@ -236,13 +185,9 @@ class nucleus(OxbashOptFl.MEhandler):
     npaOcc=self.getOcc(sLevName)
     tempocc=[]
     import numpy as np
-
-      
     nMonoSize=self.getMonoME().size    
     npaMono=np.zeros([npaOcc.shape[0],nMonoSize])
     npaMonoLabel=self.getMonoLabel()
-    
-#    print npaOcc.shape[0], nMonoSize
     denom=np.zeros(npaMono.shape)
     for nLevIdx in range(npaMono.shape[0]):    
       nMono=0
@@ -257,13 +202,7 @@ class nucleus(OxbashOptFl.MEhandler):
           nMono+=1
           if nMono>=npaMonoLabel.shape[0]:
             break
-#    print denom
-#    print npaMono
     npaMono=np.divide(npaMono,denom)
-#    print npaMono
-
-#    print npaMono.max()
-#    print npaMono
     for nIdx in self.llMESpec[0]:
       if len(tempocc) != 0:
         temp=np.array(npaOcc[:,nIdx-1])
@@ -276,7 +215,6 @@ class nucleus(OxbashOptFl.MEhandler):
         print 'logic err'
     if tempocc!=[]:
       npaOcc=tempocc
-    
     npaNewLabels=[]     
     for nIdx in range(npaMonoLabel.shape[0]):
       bIsIt=False
@@ -292,20 +230,15 @@ class nucleus(OxbashOptFl.MEhandler):
           npaNewLabels=np.append(npaNewLabels, [npaMonoLabel[nIdx,:4]], axis=0)          
         elif npaNewLabels==[]:
           npaNewLabels=np.array([npaMonoLabel[nIdx,:4]])
-
     npaNewMO=np.zeros([npaMono.shape[0], npaNewLabels.shape[0]])
     for nIdx1 in range(npaNewMO.shape[0]):
       for nIdx2 in range(npaNewLabels.shape[0]):
         for nIdx3 in range(npaMonoLabel.shape[0]):  
-#          print np.all(npaNewLabels[nIdx2]==npaMonoLabel[nIdx3,:4])
           if np.all(npaNewLabels[nIdx2]==npaMonoLabel[nIdx3,:4]):
             npaNewMO[nIdx1,nIdx2]+=npaMono[nIdx1][nIdx3]
     temp=np.append(npaOcc,npaNewMO,axis=1)
-#    print npaMono
-#    print npaNewMO
     return temp, npaNewLabels
 
-  
 #get the occupation numbers   
   def getOcc(self, sLevName):
       import numpy as np
@@ -319,15 +252,9 @@ class nucleus(OxbashOptFl.MEhandler):
           continue
         for nlevIdx,lev in enumerate(self.mllspec):
 #          lev=lev.strip().split()
-          if int(line[3])==int(2*float(eval(lev[0]+'.0'))) and int(line[1])==int(lev[1]):
-            if self.sForm=="pn":
-              temp=line[5:5+self.countOBME()]
-            elif self.sForm=="iso":
-              temp=np.array(line[5:5+2*self.countOBME()],dtype=float)
-            else:
-              print 'Error: invalid Formalism specification:', self.sForm
+          if int(line[3]) == int(2 * float(eval(lev[0]+'.0'))) and int(line[1]) == int(lev[1]):
+            temp = line[5:5 + self.countOBME()]
             temp=[temp]
-            
             if npaOcc!=[]:              
               npaOcc=np.append(npaOcc, temp, axis=0)              
             else:
@@ -341,7 +268,6 @@ class nucleus(OxbashOptFl.MEhandler):
     import numpy as np
     tempocc=[]
     npaOcc=self.getOcc(self.getLevName())
-    
     for nIdx in self.llMESpec[0]:
       if len(tempocc) != 0:
         temp=np.array(npaOcc[:,nIdx-1])
@@ -350,12 +276,10 @@ class nucleus(OxbashOptFl.MEhandler):
       elif len(tempocc)==0:
         tempocc=np.array(npaOcc[:,nIdx-1])
         tempocc.shape=[tempocc.size,1]
-
     if tempocc!=[]:
       npaOcc=np.array(tempocc)
     else:
       print 'Warning getReducedOcc is returning empty!'  
-      
     return npaOcc
       
 #get errors on the levels used in the fit
@@ -374,7 +298,6 @@ class nucleus(OxbashOptFl.MEhandler):
         temp.append(int(line[1]))
         temp.append(int(line[0]))
         temp.extend(line[2:-1])
-#        print spec, temp
         if np.array_equal(spec,temp):
           npaError=np.append(npaError,float(line[-1]))  
           break
@@ -426,21 +349,17 @@ class nucleus(OxbashOptFl.MEhandler):
     from numpy import std
     from numpy import dot
     from numpy import append
-#    print bPrev
     if bPrev==False:
       npaSample=self.accumulateEdist(npaErr, nSize,bAllME,bAllEn)
       self.writeDat(npaSample)
     elif bPrev==True:
       npaSample=self.getPrevHist()
-#      print 'init'
       if nSize>0:
         temp=self.accumulateEdist(npaErr, nSize)
         self.writeDat(temp)
         npaSample=append(npaSample,temp,axis=0)
-#    print npaSample
     nSize=npaSample.shape[0]
     nBinNum=int(sqrt(float(nSize)))
-#    print npaSample.shape,nBinNum
     lHist=[]
     lBins=[]
     lMu=[]
@@ -457,17 +376,13 @@ class nucleus(OxbashOptFl.MEhandler):
       for nIdx in range(npaBinEdges.size-1):
         x.append(0.5*(npaBinEdges[nIdx]+npaBinEdges[nIdx+1]))
       x=array(x)
-#      print npaHist
       obj=lambda param: dot(self.gaussian(x,param[0],param[1])-array(npaHist), self.gaussian(x,param[0],param[1])-array(npaHist))
       x0=array([fMu0,fSigma0])
-
       from scipy.integrate import quad
       tempfun=lambda x: self.gaussian(x,x0[0],x0[1])
       print "pre",obj(x0), x0
       print quad(tempfun,-100,100)
-
       res=minimize(obj, x0)
-
       tempfun=lambda x: self.gaussian(x,x0[0],x0[1])      
       print 'post',obj(res.x), res.x
       print quad(tempfun,-100,100)
@@ -502,7 +417,6 @@ class nucleus(OxbashOptFl.MEhandler):
     plt.tight_layout(.025)
     plt.show()    
     
-    
   def writeDat(self, npaSample):    
     fOut=open(self.sPath+'\\'+self.sName+'\\'+'tracking'+'\\energydist.dat','a+')
     sFormat='{:10.5f}\t'
@@ -533,10 +447,88 @@ class nucleus(OxbashOptFl.MEhandler):
     os.remove(self.makeIntPath(''))
     self.runsm()
 
-  def writeEnergies(self):
+  def writeOcc(self):
       '''
-          Collect the energy from the files in the oxbash output and make a
-          *.lpt file with all the energies.
+          Write the single particle occupation numbers in the energy levels
+          into a sing;e file.
+      '''
+      lsJPiList = self.makeJPiList()
+      import numpy as np
+      npaOutray = np.array([])
+      sEnPath = self.sPath + '\\' + self.sName + '\\'
+      lOldSPList=[]
+      lSPList=[]
+      nIter = 0
+      from copy import copy
+      for elem in lsJPiList:
+          fIn = open(sEnPath + self.makeEnergyName(elem[0], self.sIsospin,
+                                                   elem[1]) + '.lpe', 'r')
+          llfOcc = []          
+          nJ=0
+          bIsIt = False
+          lOldLine = []
+          for line in fIn:
+              line = line.strip().split()
+              bComp1 = False
+              if len(line)>=2:
+                  if line[0] == 's-p' and line[1] == 'energy:':
+                      lSPList = lOldLine
+              if len(line) >=3:
+                  bComp1 = (line[0] == 'no' and line[1] == 'energy' and
+                            line[2] == 'level' and line[3] == 'average')
+                  if not bIsIt and bComp1:
+                      bIsIt = True
+              if len(line) > 0:
+                  bComp2 = bIsIt and not (len(line) == 0) and not bComp1
+              if bComp2:
+                  '''nj, occ1, occ2, occ3, ...'''
+                  llfOcc.append(line)
+              else:
+                  lOldLine = line
+                  continue
+          fIn.close()
+          if np.all(lSPList != lOldSPList) and nIter>0:
+              print 'Warning: Single particle list has Changed from: '
+              print lOldSPList
+              print 'to:'
+              print lSPList
+              print 'In iteration: ', nIter, 'file: ' 
+              print (self.makeEnergyName(elem[0], self.sIsospin, elem[1]) +
+                     '.lpe')
+          nNumSPS = len(lSPList) 
+          for Occ in llfOcc:
+              tOccDType = ('Occ', float, (1,nNumSPS))
+              dtype = [('nJ', int), ('En', float), tOccDType, ('J', int),
+                       ('Pi', 'S2')]
+              values = (Occ[0], Occ[1],Occ[2:], int(2*eval(elem[0])), elem[1])
+              if npaOutray.size == 0:
+                  npaOutray = np.array(values, dtype=dtype)
+              else:
+                  temp = np.array(values, dtype=dtype)
+                  npaOutray = np.append(npaOutray, temp)
+          nIter += 1
+          lnRmList = []
+          for nIdx in range(npaOutray.size):
+              for nJIdx in range(nIdx):
+                  if np.all(npaOutray[nJIdx] == npaOutray[nIdx]):
+                      lnRmList.append(nIdx)
+      npaOutray = np.delete(npaOutray, lnRmList)
+      npaOutray = np.sort(npaOutray, order=['En', 'J', 'Pi', 'nJ'])
+      sOccName = self.getLevName()
+      sOccName = sOccName[:-3] + 'occ'
+      fOut = open(sEnPath + sOccName, 'w')
+      sHFormat = '{:>5}{:>5}{:>8}{:>3}{:>3}'+'{:>8}'*nNumSPS
+      sFormat = '{:>5d}{:>5d}{:>8.3f}{:>3}{:>3}'+'{:>8.2f}'*nNumSPS
+      fOut.write(sHFormat.format('N', 'nJ', 'E_ex', 'J', 'p', *lSPList)+'\n')      
+      for nIdx, elem in enumerate(npaOutray):
+          fOut.write(sFormat.format(nIdx, elem['nJ'],
+                                    elem['En'] - npaOutray[0]['En'], elem['J'],
+                                    elem['Pi'],*elem['Occ'][0][:])+'\n')
+      fOut.close()
+
+  def makeJPiList(self):
+      '''
+          Make a  list of the spin and parities of the levels being tracked. 
       '''
       lsJPiList = []
       for elem in self.mllspec:
@@ -548,6 +540,14 @@ class nucleus(OxbashOptFl.MEhandler):
                   break
           if not bIsIt:
               lsJPiList.append(temp)
+      return lsJPiList
+          
+  def writeEnergies(self):
+      '''
+          Collect the energy from the files in the oxbash output and make a
+          *.lpt file with all the energies.
+      '''
+      lsJPiList = self.makeJPiList()
       import numpy as np
       npaOutray = np.array([])
       sEnPath = self.sPath + '\\' + self.sName + '\\'
@@ -588,9 +588,14 @@ class nucleus(OxbashOptFl.MEhandler):
                            ('Pi', 'S2')]
                   values = (En[0], En[1], elem[0], elem[1])
                   temp = np.array(values, dtype=dtype)
-                  print temp
                   npaOutray = np.append(npaOutray, temp)
-      np.sort(npaOutray, order=['En', 'J', 'Pi', 'nJ'])
+      lnRmList = []
+      for nIdx in range(npaOutray.size):
+          for nJIdx in range(nIdx):
+              if np.all(npaOutray[nJIdx] == npaOutray[nIdx]):
+                  lnRmList.append(nIdx)
+      npaOutray = np.delete(npaOutray, lnRmList)
+      npaOutray = np.sort(npaOutray, order=['En', 'J', 'Pi', 'nJ'])
       fOut = open(sEnPath + self.getLevName(), 'w')
       fOut.write('\n' + '-'*60 + '\n\n')
       sHFormat = '{:>5}{:>5}{:>11}{:>8}{:>5}{:>5}{:>3}'
@@ -600,7 +605,7 @@ class nucleus(OxbashOptFl.MEhandler):
           fOut.write(sFormat.format(nIdx, elem['nJ'], elem['En'],
                                     elem['En'] - npaOutray[0]['En'], elem['J'],
                                     self.sIsospin, elem['Pi'])+'\n')
-
+      fOut.close()
   def makeEnergyName(self, sJ, sIsospin, sParity):
     '''
         Make the oxbash filename for the energy output file given the input
@@ -618,6 +623,9 @@ class nucleus(OxbashOptFl.MEhandler):
                   '25/2': 'P', '12': 'Q', '27/2': 'R', '14': 'S', '29/2': 'T',
                   '15': 'U', '31/2': 'V', '16': 'W', '33/2': 'X', '17': 'Y'})
     sName += dCode[sJ]
+    temp = sIsospin.split('/')
+    if len(temp) > 0 and int(temp[0]) % 2 == 0:
+        sIsospin = str(int(eval(sIsospin)))
     sName += dCode[sIsospin]
     dParity = dict({'+1': '0', '-1': '1'})
     sName += dParity[sParity]

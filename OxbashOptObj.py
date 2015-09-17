@@ -676,19 +676,21 @@ class BashOpt:
         a = []
         npaETh = []
         for nucleus in self.mloNuclei:
-            fIn = open(nucleus.sPath + '\\' + nucleus.sName + "\\list.lpt")
-            sLevName = fIn.readline().strip()
-            fIn.close()
+            sLevName = nucleus.getLevName()
+            npaOcc = nucleus.getOcc(sLevName)
             if a != []:
-                a = numpy.append(a, nucleus.getOcc(sLevName), axis=0)
+                print nucleus.nAZ
+                print a
+                print npaOcc
+                a = numpy.append(a, npaOcc, axis=0)
             else:
-                a = numpy.array(nucleus.getOcc(sLevName))
+                a = numpy.array(npaOcc)
             tempth = nucleus.getEnNu()
             if npaETh != []:
                 npaETh = numpy.append(npaETh, tempth, axis=0)
             else:
                 npaETh = tempth
-            import sys
+        import sys
         sys.path.append('C:\PythonScripts\generalmath')
         import MatManip
 # get the zero cols of the matrix
@@ -1569,7 +1571,7 @@ x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput.in',
 
 
 #import numpy as np
-#print x.IterativeLSq(sMethod='single',bMix=False, nMaxIter=60, fTolin=10**-2)
+print x.IterativeLSq(sMethod='single',bMix=False, nMaxIter=60, fTolin=10**-2)
 #base1=np.array([[5,5,5,5],[4,4,4,4],[6,6,6,6],[5,6,5,6]])
 #print x.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=base1)
 #base2=np.array([[5,6,5,6], [5,4,5,4],[4,6,4,6]])
@@ -1579,7 +1581,7 @@ x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput.in',
 #            'MaxFeval': 100}
 #print x.performOptimization(sMethod='Nelder-Mead', llMonoBase=np.append(base1,base2,axis=0),
 #                            dOptions=dOptions)
-#x.plotResults(sMethod='smono', bError=True)
+x.plotResults(sMethod='smono', bError=True)
 
 #
 #import numpy as np
