@@ -42,10 +42,10 @@ class nucleus(OxbashOptFl.MEhandler):
         os.makedirs(self.sPath + '\\' + self.sName)
     if not os.path.exists(sPath + '\\' + self.sName + '\\tracking'):
         os.makedirs(self.sPath + '\\' + self.sName + '\\tracking')
-    self.writeAns(sMMDR, sPar, lsShared)
-    self.sInt = lsShared[2]
     self.llMESpec = llMESpec
     self.mllspec = llStateSpec
+    self.writeAns(sMMDR, sPar, lsShared)
+    self.sInt = lsShared[2]
     # copy the interaction to the working directory
     import shutil
     shutil.copyfile(sOBDir + '\\sps\\' + self.sInt+'.int', self.sPath + '\\' +
@@ -77,9 +77,37 @@ class nucleus(OxbashOptFl.MEhandler):
     fAns.write(sForm3.format(0, 0) + '\n')
     sForm4 = '{:>12}'
     fAns.write(sForm4.format(sPar) + '\n')
-    fAns.write(sForm1.format('st', 0, 0, 0, 0, 0) + '\n\n')
+    sDenForm = '{:<15s}{:<12d}{:<7d}' + '{:<15.7f}'*3 + '\n'
+    lnZero = [0]*5
+    sDenLine = sDenForm.format('den', *lnZero)
+    s_nJForm = '{:>12d}'*2 + '\n'
+    sDecForm = '{:>15.7f}'*2 + '\n'
+    for lev in self.mllspec:
+        fAns.write(sDenLine)
+        fAns.write('at\n')
+        sEnName = self.makeEnergyName(lev[0], self.sIsospin, lev[2])
+        s_nJLine = sOneForm.format(lev[1], lev[1])
+        for nIdx in range(2):
+            fAns.write(sEnName + '\n')
+            fAns.write(s_nJLine)
+        fJ = float(eval(lev[0] + '.0'))
+        fTz = float(eval(self.sIsospin + '.0'))
+        if lev[2] == '+1':
+            fPi = 0.0
+        elif lev[2] == '-1':
+            fPi = 1.0
+        else:
+            print 'Error invalid parity: ', lev[2], 'only "+1" or "-1" allowed.'
+        for nIdx in range(2):
+            fAns.write(sDecForm.format(fJ, 0))            
+            fAns.write(sDecForm.format(fTz, 0))            
+            fAns.write(sDecForm.format(fPi, 0))
+        fAns.write('y\n')
+        for nIdx in range(2):
+            fAns.write(sDecForm.format(0,0))
+    fAns.write(sForm1.format('st', 0, 0, 0, 0, 0) + '\n\n')        
     fAns.close()
-    
+
   def writeStatus(self):    
     fOut=open(self.sPath+'\\'+self.sName+'\\'+'tracking'+'\\energy.dat','a+')
     string=''
@@ -247,12 +275,13 @@ class nucleus(OxbashOptFl.MEhandler):
       nIdx=0
       for line in fIn:
         line=line.strip().split()
-        if nIdx<2:
-          nIdx+=1
-          continue
+        try: 
+            int(line[3])
+        except:
+            continue
         for nlevIdx,lev in enumerate(self.mllspec):
-#          lev=lev.strip().split()
-          if int(line[3]) == int(2 * float(eval(lev[0]+'.0'))) and int(line[1]) == int(lev[1]):
+          if (int(line[3]) == int(2 * float(eval(lev[0]+'.0'))) and
+              int(line[1]) == int(lev[1]) and line[4] == lev[2]):
             temp = line[5:5 + self.countOBME()]
             temp=[temp]
             if npaOcc!=[]:              
@@ -500,7 +529,7 @@ class nucleus(OxbashOptFl.MEhandler):
               tOccDType = ('Occ', float, (1,nNumSPS))
               dtype = [('nJ', int), ('En', float), tOccDType, ('J', int),
                        ('Pi', 'S2')]
-              values = (Occ[0], Occ[1],Occ[2:], int(2*eval(elem[0])), elem[1])
+              values = (Occ[0], Occ[1],Occ[2:], int(2*eval(elem[0]+'.')), elem[1])
               if npaOutray.size == 0:
                   npaOutray = np.array(values, dtype=dtype)
               else:
@@ -519,7 +548,7 @@ class nucleus(OxbashOptFl.MEhandler):
       fOut = open(sEnPath + sOccName, 'w')
       sHFormat = '{:>5}{:>5}{:>8}{:>3}{:>3}'+'{:>8}'*nNumSPS
       sFormat = '{:>5d}{:>5d}{:>8.3f}{:>3}{:>3}'+'{:>8.2f}'*nNumSPS
-      fOut.write(sHFormat.format('N', 'nJ', 'E_ex', 'J', 'p', *lSPList)+'\n')      
+      fOut.write(sHFormat.format('N', 'nJ', 'E_ex', '2J', 'p', *lSPList)+'\n')      
       for nIdx, elem in enumerate(npaOutray):
           fOut.write(sFormat.format(nIdx, elem['nJ'],
                                     elem['En'] - npaOutray[0]['En'], elem['J'],
@@ -613,15 +642,18 @@ class nucleus(OxbashOptFl.MEhandler):
         the file name without the extension.
     '''
     sName = ''
-    sName += self.lookupLab(self.sMS, 'MS')
+    sSpCode = self.lookupLab(self.sInt, 'MS')
+    if type(sSpCode) == type(None):
+        sSpCode = 'x'
+    sName += sSpCode
 #    if this gets used elswhere it may make sense to make it a global variable
     dCode = dict({'0': '0', '1/2': '1', '1': '2', '3/2': '3', '2': '4',
                   '5/2': '5', '3': '6', '7/2': '7', '4': '8', '9/2': '9',
-                  '5': 'A', '11/2': 'B', '6': 'C', '13/2': 'D', '7': 'E',
-                  '15/2': 'F', '8': 'G', '17/2': 'H', '9': 'I', '19/2': 'J',
-                  '10': 'K', '21/2': 'L', '11': 'M', '23/2': 'N', '12': 'O',
-                  '25/2': 'P', '12': 'Q', '27/2': 'R', '14': 'S', '29/2': 'T',
-                  '15': 'U', '31/2': 'V', '16': 'W', '33/2': 'X', '17': 'Y'})
+                  '5': 'a', '11/2': 'b', '6': 'c', '13/2': 'd', '7': 'e',
+                  '15/2': 'f', '8': 'g', '17/2': 'h', '9': 'i', '19/2': 'j',
+                  '10': 'k', '21/2': 'l', '11': 'm', '23/2': 'n', '12': 'o',
+                  '25/2': 'p', '12': 'q', '27/2': 'r', '14': 's', '29/2': 't',
+                  '15': 'u', '31/2': 'v', '16': 'w', '33/2': 'x', '17': 'y'})
     sName += dCode[sJ]
     temp = sIsospin.split('/')
     if len(temp) > 0 and int(temp[0]) % 2 == 0:
@@ -634,7 +666,10 @@ class nucleus(OxbashOptFl.MEhandler):
     elif self.nVal % 2 == 0:
         sVal = str(self.nVal/2)
     sName += dCode[sVal]
-    sName += self.lookupLab(self.sInt, 'Int')
+    sIntCode = self.lookupLab(self.sInt, 'Int')
+    if type(sIntCode) == type(None):
+        sIntCode = 'y'        
+    sName += sIntCode
     return sName
 
   def lookupLab(self, sLab, sType):
@@ -660,3 +695,21 @@ class nucleus(OxbashOptFl.MEhandler):
           return line[nCharColIdx]
     print ('Error: Label "' + sLab +'" not found in ' + self.sOBDir +
            '\\sps\\label.dat')
+    return None
+    
+#    return the two body trasition densities in an array where each row is a
+#    different energy level and each column is a the transition label
+    def getTBTD(self):
+        npaTPTD = []
+        npaLab = []
+        for lev in self.mllspec:
+            sLevNam = self.makeEnergyName(lev[0], self.sIsospin, lev[2])
+            sDenFileName = sLevName + sLevName[1:3] +'.lbd'
+            fDen = open(self.sPath + '\\' + sDenFileName, 'r')
+            tempLab =[]
+            tempDen = []
+            for line in fDen:
+                line = line.strip().split()
+                try:
+                    tempLab.append([int(line[nIdx]) for nIdx in range(4)])
+                    tempDen.append()

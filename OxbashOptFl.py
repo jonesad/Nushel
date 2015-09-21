@@ -85,10 +85,17 @@ class MEhandler:
         sStart="{0:3}{1:>11.4f}"
         sNext="{0:>10.4f}"
         templine=line.strip().split()        
-        if len(self.llMESpec[0])!=0 and nLine==0:
+        if len(self.llMESpec[0]) != 0 and nLine == 0:
 #          print "Writing only listed ME"
           for nElemIdx, elem in enumerate(self.llMESpec[0]):
-            templine[elem]=npaME[nElemIdx]
+            if type(self.llMESpec[0][0]) == int:
+                templine[elem] = npaME[nElemIdx]
+            elif type(self.llMESpec[0][0]) == list:
+                templine[elem] = npaME[nElemIdx[0]]
+                templine[elem] = npaME[nElemIdx[1]]
+            else:
+                print 'Error: member llMESpec[0][0] has unexpected type:'
+                print type(self.llMESpec[0][0])
 #            print "templine["+str(elem)+']='+'npaME['+str(nElemIdx)+'-1]=',npaME[nElemIdx-1]
           for nIdx, elem in enumerate(templine):
             if nIdx==0:
@@ -103,7 +110,6 @@ class MEhandler:
         nLine+=1
       else:
         fIntOut.write(line)
-        
     fIntSrc.close()
     fIntOut.close()
 #    get the one body matrix elements
@@ -124,9 +130,14 @@ class MEhandler:
 #          print "bAll is true"          
         elif len(self.llMESpec[0])!=0:
           for elem in self.llMESpec[0]:
-#            print line 
-#            print int(elem)
-            npaME.append(line[int(elem)])
+            if type(elem) == int:
+                npaME.append(line[int(elem)])
+            elif type(elem) == list:
+                npaME.append(line[int(elem[0])])
+            else:
+                print 'Error: member llMESpec[0][0] has unexpected type:'
+                print type(self.llMESpec[0][0])
+                break
         break            
     fIntSrc.close()
     return np.array(npaME,dtype=float)

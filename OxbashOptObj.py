@@ -28,12 +28,11 @@ def CreateInFile(sInfilePath):
 # restriction
     fInFile.write('n\n')
 # interaction
-    fInFile.write('usdb\n')
+    fInFile.write('usdc\n')
 # formalism iso/pn
     fInFile.write('iso\n')
 # does the interaction extrapolate matrix elements
     fInFile.write('False\n')
-
 # number of nuclei used in optimization
     fInFile.write('10\n')
 
@@ -366,12 +365,17 @@ class BashOpt:
         nIter = 0
         fTol = fTolin / float(len(self.mloNuclei[0].mllspec))
         lME = [[], [], [], []]
-
         if sMethod == 'mono':
             npaMonoLabel = self.mloNuclei[0].getMonoLabel()
             for nucleus in self.mloNuclei:
-                nucleus.llMESpec = [list(range(1, nucleus.countOBME() + 1)),
-                                    npaMonoLabel]
+                temp = nucleus.countOBME()
+                if temp % 2 != 0:
+                    print 'Warning: Odd number of OBMEs!'
+                    raw_input('Press enter to continue.')
+                llnOBMESpec = []
+                for nIdx in range(temp/2):
+                    llnOBMESpec.append([nIdx + 1, nIdx + temp / 2 + 1])
+                nucleus.llMESpec = [llnOBMESpec, npaMonoLabel]
                 nucleus.setmanBody([1, 2])
         while abs(lRes[0] - lRes[1]) > fTol and nIter < nMaxIter:
             for nIdx in range(3):
@@ -679,9 +683,6 @@ class BashOpt:
             sLevName = nucleus.getLevName()
             npaOcc = nucleus.getOcc(sLevName)
             if a != []:
-                print nucleus.nAZ
-                print a
-                print npaOcc
                 a = numpy.append(a, npaOcc, axis=0)
             else:
                 a = numpy.array(npaOcc)
@@ -697,7 +698,6 @@ class BashOpt:
         rmList = MatManip.getZeroCols(a)
         if rmList != []:
             a = MatManip.rmSlice(rmList, a, 1)
-
         lLabSpec = self.constructLabels(rmList)
         lsOBLab = []
         npaTBLab = []
@@ -718,6 +718,8 @@ class BashOpt:
         obme = self.mloNuclei[0].getOBME()
         obme.shape = [obme.size, 1]
         npaETh.shape = [npaETh.size, 1]
+        print obme
+        print self.mloNuclei[0].llMESpec
         Hexpect = npaETh - numpy.dot(a, obme)
         target = self.EExp - Hexpect
 #     npaWeights=numpy.zeros([self.EExp.size,self.EExp.size])
@@ -946,16 +948,10 @@ class BashOpt:
 # consrtuct a single list of labels for use in the fitting procedure
     def constructLabels(self, rmList):
         from itertools import chain
-        for nucleus in self.mloNuclei:
-            nucleus.llMESpec[0] = list(range(1, self.mloNuclei[0].countOBME() +
-                                             1))
+#        for nucleus in self.mloNuclei:
+#            nucleus.llMESpec[0] = list(range(1, self.mloNuclei[0].countOBME() +
+#                                             1))
         lLabSpec = list(chain.from_iterable(self.mloNuclei[0].llMESpec))
-        if self.sForm == 'iso':
-            for num in range(3):
-                try:
-                    rmList.remove(num)
-                except TypeError:
-                    ''
         temp = []
         for elem in lLabSpec:
             if type(elem).__name__ == 'int':
@@ -1060,8 +1056,7 @@ class BashOpt:
 # get full mono labels and split into monopole labels and jlabels
     def constructMonoLists(self, npaMonoList):
         npaFullMonoLab = self.mloNuclei[0].getMonoLabel(npaMonoList)
-        lnpaShortMonoLab = [npaFullMonoLab[i][:4]
-                            for i in range(npaFullMonoLab.shape[0])]
+        lnpaShortMonoLab = [npaFullMonoLab[i][:4] for i in range(npaFullMonoLab.shape[0])]
         temp = []
         import numpy as np
         for i in range(len(lnpaShortMonoLab)):
@@ -1570,10 +1565,10 @@ x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput.in',
 #                       sOptMethod='simple', fTolIn=10**-2)
 
 
-#import numpy as np
-print x.IterativeLSq(sMethod='single',bMix=False, nMaxIter=60, fTolin=10**-2)
-#base1=np.array([[5,5,5,5],[4,4,4,4],[6,6,6,6],[5,6,5,6]])
-#print x.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=base1)
+import numpy as np
+#print x.IterativeLSq(sMethod='single',bMix=False, nMaxIter=60, fTolin=10**-2)
+base1=np.array([[1,1,1,1],[2,2,2,2],[3,3,3,3]])
+print x.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=base1)
 #base2=np.array([[5,6,5,6], [5,4,5,4],[4,6,4,6]])
 #print x.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=base2)
 #
