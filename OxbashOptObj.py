@@ -396,6 +396,9 @@ class BashOpt:
                 npaGuess = temp[1]
                 for nucleus in self.mloNuclei:
                     nucleus.llMESpec = temp[2]
+            elif sMethod == 'TBTD':
+                temp = self.TBTDLeastSq()
+                npaGuess = temp[0]
             else:
                 print 'Error: sMethod=', sMethod, 'is not a valid argument.'
                 break
@@ -798,21 +801,57 @@ class BashOpt:
         npaME = self.mloNuclei[0].getME()
 #     a=numpy.append(npaSPOcc,npaMono,1)
         a = npaMono
-
 #     print a
         target = npaEExp - (npaETh - numpy.dot(a, npaME))
-
 #     npaWeights=numpy.zeros([npaEExp.size,npaEExp.size])
 #     for nIdx, elem in enumerate(self.npaErrors):
 #       print elem
 #       npaWeights[nIdx,nIdx]=1.0/(elem**2)
 #     ans = numpy.linalg.lstsq(numpy.dot(npaWeights, a), numpy.dot(npaWeights,
 #                                                                   target))
-
         ans = numpy.linalg.lstsq(a, target)
         ans = ans[0]
 
         return ans, a, target, npaME
+
+#    do a linear least square optimization of the tbme using the TBTDs
+    def TBTDLeastSq(self):
+        npaTBTDLabels = []
+        npaTBTD = []
+        import numpy as np
+        import MatManip
+        for nucleus in self.mloNuclei:
+            tempTBTD, tempLabel = nucleus.getTBTD()
+            if npaTBTDLabels == [] or np.all(npaTBTDLabels == tempLabel):
+                if npaTBTDLabels == []:
+                    npaTBTDLabels = np.array(tempLabel)
+                if npaTBTD == []:
+                    npaTBTD = tempTBTD
+                else:
+                    npaTBTD = np.append(npaTBTD, tempTBTD, axis=0)
+            else:
+                lnpaLAb, npaTBTD = MatManip.combinedLabeledColumns(npaTBTDLabels, npaTBTD, tempLabel, tempTBTD)
+        npaETh = []
+        for nucleus in self.mloNuclei:
+            nucleus.llMESpec[1] = npaTBTDLabels
+            tempth = nucleus.getEnNu()
+            if npaETh != []:
+                npaETh = np.append(npaETh, tempth, axis=0)
+            else:
+                npaETh = tempth
+        npaME = self.mloNuclei[0].getME()
+        a = npaTBTD
+        target = self.npaEExp - (npaETh - np.dot(a, npaME))
+#     npaWeights=numpy.zeros([npaEExp.size,npaEExp.size])
+#     for nIdx, elem in enumerate(self.npaErrors):
+#       print elem
+#       npaWeights[nIdx,nIdx]=1.0/(elem**2)
+#     ans = numpy.linalg.lstsq(numpy.dot(npaWeights, a), numpy.dot(npaWeights,
+#                                                                   target))
+        ans = np.linalg.lstsq(a, target)
+        ans = ans[0]
+        return ans, a, target, npaME
+        
 
 # quickly set manbody variable
     def initmanbody(self):
@@ -1549,6 +1588,8 @@ sys.path.append('C:\PythonScripts\generalmath')
 x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput.in',
              'c:\\PythonScripts\\OxBashScripts\\test',
              'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=True)
+print x.IterativeLSq(sMethod='TBTD', bMix=False, nMaxIter=60, fTolin=10**-2)
+
 #x.checkMonoResponse(fIncLow=0.1, fIncHigh=0.1,nRuns=1,display=True)
 
 #ans, a, target, npaME,lnpaShortMonoLab,lnpaMonoJLab, shortdiff=x.sMono()
@@ -1565,10 +1606,10 @@ x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput.in',
 #                       sOptMethod='simple', fTolIn=10**-2)
 
 
-import numpy as np
+#import numpy as np
 #print x.IterativeLSq(sMethod='single',bMix=False, nMaxIter=60, fTolin=10**-2)
-base1=np.array([[1,1,1,1],[2,2,2,2],[3,3,3,3]])
-print x.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=base1)
+#base1=np.array([[1,1,1,1],[2,2,2,2],[3,3,3,3]])
+#print x.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=base1)
 #base2=np.array([[5,6,5,6], [5,4,5,4],[4,6,4,6]])
 #print x.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=base2)
 #

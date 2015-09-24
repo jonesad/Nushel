@@ -86,7 +86,7 @@ class nucleus(OxbashOptFl.MEhandler):
         fAns.write(sDenLine)
         fAns.write('at\n')
         sEnName = self.makeEnergyName(lev[0], self.sIsospin, lev[2])
-        s_nJLine = sOneForm.format(lev[1], lev[1])
+        s_nJLine = s_nJForm.format(int(lev[1]), int(lev[1]))
         for nIdx in range(2):
             fAns.write(sEnName + '\n')
             fAns.write(s_nJLine)
@@ -698,18 +698,30 @@ class nucleus(OxbashOptFl.MEhandler):
     return None
     
 #    return the two body trasition densities in an array where each row is a
-#    different energy level and each column is a the transition label
-    def getTBTD(self):
-        npaTPTD = []
-        npaLab = []
-        for lev in self.mllspec:
-            sLevNam = self.makeEnergyName(lev[0], self.sIsospin, lev[2])
-            sDenFileName = sLevName + sLevName[1:3] +'.lbd'
-            fDen = open(self.sPath + '\\' + sDenFileName, 'r')
-            tempLab =[]
-            tempDen = []
-            for line in fDen:
-                line = line.strip().split()
-                try:
-                    tempLab.append([int(line[nIdx]) for nIdx in range(4)])
-                    tempDen.append()
+#    different energy level and each column is a different transition label
+  def getTBTD(self):
+    npaTBTD = []
+    lnpaLab = []
+    import numpy as np
+    import MatManip
+    for lev in self.mllspec:
+        sDenFileName = self.makeEnergyName(lev[0], self.sIsospin, lev[2]) +'.tp1'
+        fDen = open(self.sPath + '\\' + self.sName + '\\' + sDenFileName, 'r')
+        tempLab =[]
+        tempDen = []
+        for line in fDen:
+            line = line.strip().split()
+            tempLab.append([int(line[nIdx]) for nIdx in range(6)])
+            tempDen.append(float(line[6]))
+        if np.all(lnpaLab==tempLab) or lnpaLab == []:
+            if lnpaLab == []:
+                lnpaLab = tempLab
+            tempDen = np.array(tempDen)
+            tempDen.shape = [1,tempDen.size]
+            if npaTBTD == []:
+                npaTBTD = tempDen
+            else:
+                npaTBTD = np.append(npaTBTD, tempDen, axis = 0)
+        else:
+            lnpaLAb, npaTBTD = MatManip.combinedLabeledColumns(lnpaLab, npaTBTD, tempLab, tempDen)
+    return npaTBTD, lnpaLab
