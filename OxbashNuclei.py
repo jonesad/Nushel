@@ -713,7 +713,7 @@ class nucleus(OxbashOptFl.MEhandler):
             line = line.strip().split()
             tempLab.append([int(line[nIdx]) for nIdx in range(6)])
             tempDen.append(float(line[6]))
-        if np.all(lnpaLab==tempLab) or lnpaLab == []:
+        if np.all(np.array(lnpaLab) == np.array(tempLab)) or len(lnpaLab) == 0:
             if lnpaLab == []:
                 lnpaLab = tempLab
             tempDen = np.array(tempDen)
@@ -723,5 +723,11 @@ class nucleus(OxbashOptFl.MEhandler):
             else:
                 npaTBTD = np.append(npaTBTD, tempDen, axis = 0)
         else:
-            lnpaLAb, npaTBTD = MatManip.combinedLabeledColumns(lnpaLab, npaTBTD, tempLab, tempDen)
+            npaTBTD = np.array(npaTBTD)
+            tempDen = np.array(tempDen)
+            if len(npaTBTD.shape)<2:
+                npaTBTD.shape = [1, npaTBTD.size]
+            if len(tempDen.shape)<2:
+                tempDen.shape = [1, tempDen.size]
+            lnpaLab, npaTBTD = MatManip.combinedLabeledColumns(lnpaLab, npaTBTD, tempLab, tempDen)
     return npaTBTD, lnpaLab

@@ -822,7 +822,7 @@ class BashOpt:
         import MatManip
         for nucleus in self.mloNuclei:
             tempTBTD, tempLabel = nucleus.getTBTD()
-            if npaTBTDLabels == [] or np.all(npaTBTDLabels == tempLabel):
+            if len(npaTBTDLabels) == 0 or np.all(npaTBTDLabels == np.array(tempLabel)):
                 if npaTBTDLabels == []:
                     npaTBTDLabels = np.array(tempLabel)
                 if npaTBTD == []:
@@ -830,9 +830,11 @@ class BashOpt:
                 else:
                     npaTBTD = np.append(npaTBTD, tempTBTD, axis=0)
             else:
-                lnpaLAb, npaTBTD = MatManip.combinedLabeledColumns(npaTBTDLabels, npaTBTD, tempLabel, tempTBTD)
+                npaTBTDLabels, npaTBTD = MatManip.combinedLabeledColumns(npaTBTDLabels, npaTBTD, tempLabel, tempTBTD)
         npaETh = []
+        npaTBTDLabels = np.array(npaTBTDLabels)
         for nucleus in self.mloNuclei:
+            nucleus.llMESpec[0] = []
             nucleus.llMESpec[1] = npaTBTDLabels
             tempth = nucleus.getEnNu()
             if npaETh != []:
@@ -841,7 +843,9 @@ class BashOpt:
                 npaETh = tempth
         npaME = self.mloNuclei[0].getME()
         a = npaTBTD
-        target = self.npaEExp - (npaETh - np.dot(a, npaME))
+        print a.shape, npaME.shape, self.mloNuclei[0].llMESpec[1].shape, npaTBTDLabels.shape
+        raw_input('enter')
+        target = self.EExp - (npaETh - np.dot(a, npaME))
 #     npaWeights=numpy.zeros([npaEExp.size,npaEExp.size])
 #     for nIdx, elem in enumerate(self.npaErrors):
 #       print elem
@@ -1587,7 +1591,7 @@ sys.path.append('C:\PythonScripts\generalmath')
 
 x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput.in',
              'c:\\PythonScripts\\OxBashScripts\\test',
-             'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=True)
+             'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=False)
 print x.IterativeLSq(sMethod='TBTD', bMix=False, nMaxIter=60, fTolin=10**-2)
 
 #x.checkMonoResponse(fIncLow=0.1, fIncHigh=0.1,nRuns=1,display=True)
