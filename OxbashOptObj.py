@@ -244,8 +244,11 @@ class BashOpt:
         self.track = 1
         self.sInPath = sInPath
         self.sOutPath = sOutPath
-# copy ocbash-dir.dat to the output folder 
+# copy ocbash-dir.dat to the output folder
         import shutil
+        import os
+        if not os.path.isdir(self.sOutPath):
+            os.makedirs(self.sOutPath)
         shutil.copyfile(self.sOBDir + '\\oxbash-dir.dat', self.sOutPath +
                         '\\oxbash-dir.dat')
         self.EExp = []
@@ -843,7 +846,11 @@ class BashOpt:
                 npaETh = tempth
         npaME = self.mloNuclei[0].getME()
         a = npaTBTD
+        nlRMList = MatManip.getZeroCols(a)
         print a.shape, npaME.shape, self.mloNuclei[0].llMESpec[1].shape, npaTBTDLabels.shape
+        print a 
+        print npaME
+        print np.dot(a, npaME)
         raw_input('enter')
         target = self.EExp - (npaETh - np.dot(a, npaME))
 #     npaWeights=numpy.zeros([npaEExp.size,npaEExp.size])
@@ -855,7 +862,6 @@ class BashOpt:
         ans = np.linalg.lstsq(a, target)
         ans = ans[0]
         return ans, a, target, npaME
-        
 
 # quickly set manbody variable
     def initmanbody(self):
@@ -1590,8 +1596,8 @@ sys.path.append('c:\\PythonScripts\\OxBashScripts\\')
 sys.path.append('C:\PythonScripts\generalmath')
 
 x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput.in',
-             'c:\\PythonScripts\\OxBashScripts\\test',
-             'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=False)
+             'c:\\PythonScripts\\OxBashWork\\test',
+             'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=True)
 print x.IterativeLSq(sMethod='TBTD', bMix=False, nMaxIter=60, fTolin=10**-2)
 
 #x.checkMonoResponse(fIncLow=0.1, fIncHigh=0.1,nRuns=1,display=True)
