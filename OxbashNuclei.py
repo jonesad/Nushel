@@ -46,6 +46,7 @@ class nucleus(OxbashOptFl.MEhandler):
     self.mllspec = llStateSpec
     self.writeAns(sMMDR, sPar, lsShared)
     self.sInt = lsShared[2]
+    self.nOBME = self.countOBME()
     # copy the interaction to the working directory
     import shutil
     shutil.copyfile(sOBDir + '\\sps\\' + self.sInt+'.int', self.sPath + '\\' +
@@ -709,10 +710,27 @@ class nucleus(OxbashOptFl.MEhandler):
         fDen = open(self.sPath + '\\' + self.sName + '\\' + sDenFileName, 'r')
         tempLab =[]
         tempDen = []
+        lfOBME = self.getOBME(True)[0]
         for line in fDen:
             line = line.strip().split()
-            tempLab.append([int(line[nIdx]) for nIdx in range(6)])
-            tempDen.append(float(line[6]))
+            if len(line) >=6:
+#        take out redundant labels
+                for nJIdx, elem in enumerate(line):
+                    if self.sForm == 'iso' and nJIdx < 4 and elem > self.nOBME:
+                        line[nJIdx] = str(int(elem) - self.nOBME)
+                if lfOBME[int(line[1])-1]<lfOBME[int(line[0])-1]:
+                    line[-1] = -float(line[-1])
+                    temp = line[0]
+                    line[0] = line[1]
+                    line[1] = temp
+                if lfOBME[int(line[3])-1]<lfOBME[int(line[2])-1]:
+                    line[-1] = -float(line[-1])
+                    temp = line[2]
+                    line[2] = line[3]
+                    line[3] = temp
+                tempLab.append([int(line[nIdx]) for nIdx in range(6)])
+                tempDen.append(float(line[6]))
+
         if np.all(np.array(lnpaLab) == np.array(tempLab)) or len(lnpaLab) == 0:
             if lnpaLab == []:
                 lnpaLab = tempLab

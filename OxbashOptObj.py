@@ -847,10 +847,8 @@ class BashOpt:
         npaME = self.mloNuclei[0].getME()
         a = npaTBTD
         nlRMList = MatManip.getZeroCols(a)
-        print a.shape, npaME.shape, self.mloNuclei[0].llMESpec[1].shape, npaTBTDLabels.shape
-        print a 
         print npaME
-        print np.dot(a, npaME)
+        print self.mloNuclei[0].llMESpec
         raw_input('enter')
         target = self.EExp - (npaETh - np.dot(a, npaME))
 #     npaWeights=numpy.zeros([npaEExp.size,npaEExp.size])
@@ -1597,7 +1595,7 @@ sys.path.append('C:\PythonScripts\generalmath')
 
 x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput.in',
              'c:\\PythonScripts\\OxBashWork\\test',
-             'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=True)
+             'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=False)
 print x.IterativeLSq(sMethod='TBTD', bMix=False, nMaxIter=60, fTolin=10**-2)
 
 #x.checkMonoResponse(fIncLow=0.1, fIncHigh=0.1,nRuns=1,display=True)
