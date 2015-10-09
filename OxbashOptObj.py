@@ -833,7 +833,9 @@ class BashOpt:
                 else:
                     npaTBTD = np.append(npaTBTD, tempTBTD, axis=0)
             else:
-                npaTBTDLabels, npaTBTD = MatManip.combinedLabeledColumns(npaTBTDLabels, npaTBTD, tempLabel, tempTBTD)
+                npaTBTDLabels, npaTBTD = \
+                    MatManip.combinedLabeledColumns(npaTBTDLabels, npaTBTD,
+                                                    tempLabel, tempTBTD)
         npaETh = []
         npaTBTDLabels = np.array(npaTBTDLabels)
         for nucleus in self.mloNuclei:
@@ -844,10 +846,21 @@ class BashOpt:
                 npaETh = np.append(npaETh, tempth, axis=0)
             else:
                 npaETh = tempth
-        npaME = self.mloNuclei[0].getME()
-        a = npaTBTD
+        npaOcc = []
+        for nucleus in self.mloNuclei:
+            sLevName = nucleus.getLevName()
+            npaTempOcc = nucleus.getOcc(sLevName)
+            if np.all(npaOcc != []):
+                npaOcc = np.append(npaOcc, npaTempOcc, axis=0)
+            else:
+                npaOcc = npaTempOcc
+        npaME = self.mloNuclei[0].getOBME(bAll=True)
+        npaME = np.append(npaME, self.mloNuclei[0].getTBME())
+        a = np.append(npaOcc, npaTBTD, axis=1)
         nlRMList = MatManip.getZeroCols(a)
+        print a
         print npaME
+        print np.dot(a, npaME)
         print self.mloNuclei[0].llMESpec
         raw_input('enter')
         target = self.EExp - (npaETh - np.dot(a, npaME))
@@ -1595,7 +1608,7 @@ sys.path.append('C:\PythonScripts\generalmath')
 
 x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput.in',
              'c:\\PythonScripts\\OxBashWork\\test',
-             'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=False)
+             'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=True)
 print x.IterativeLSq(sMethod='TBTD', bMix=False, nMaxIter=60, fTolin=10**-2)
 
 #x.checkMonoResponse(fIncLow=0.1, fIncHigh=0.1,nRuns=1,display=True)

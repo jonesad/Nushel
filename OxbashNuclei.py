@@ -46,11 +46,11 @@ class nucleus(OxbashOptFl.MEhandler):
     self.mllspec = llStateSpec
     self.writeAns(sMMDR, sPar, lsShared)
     self.sInt = lsShared[2]
-    self.nOBME = self.countOBME()
     # copy the interaction to the working directory
     import shutil
     shutil.copyfile(sOBDir + '\\sps\\' + self.sInt+'.int', self.sPath + '\\' +
                     self.sName + '\\' + self.sInt + '.int')
+    self.nOBME = self.countOBME()
     if initialize:
         self.runSM()
     self.writeStatus()
