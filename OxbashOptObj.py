@@ -1608,8 +1608,8 @@ sys.path.append('C:\PythonScripts\generalmath')
 
 x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput.in',
              'c:\\PythonScripts\\OxBashWork\\test',
-             'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=True)
-print x.IterativeLSq(sMethod='TBTD', bMix=False, nMaxIter=60, fTolin=10**-2)
+             'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=False)
+#print x.IterativeLSq(sMethod='TBTD', bMix=False, nMaxIter=60, fTolin=10**-2)
 
 #x.checkMonoResponse(fIncLow=0.1, fIncHigh=0.1,nRuns=1,display=True)
 
@@ -1638,7 +1638,7 @@ print x.IterativeLSq(sMethod='TBTD', bMix=False, nMaxIter=60, fTolin=10**-2)
 #            'MaxFeval': 100}
 #print x.performOptimization(sMethod='Nelder-Mead', llMonoBase=np.append(base1,base2,axis=0),
 #                            dOptions=dOptions)
-x.plotResults(sMethod='smono', bError=True)
+#x.plotResults(sMethod='smono', bError=True)
 
 #
 #import numpy as np

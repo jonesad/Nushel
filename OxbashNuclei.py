@@ -20,7 +20,9 @@ class nucleus(OxbashOptFl.MEhandler):
 # calculation for the nucleus.
   def __init__(self,  nZ, nA, nVal, fGSE, fError, sPath, sMMDR, sPar, lsShared,
                llMESpec, useGS, sForm, initialize=True, bExtrap=True,
-               llStateSpec=[], sOBDir='c:\\oxbash'):
+               llStateSpec=[], sOBDir='c:\\oxbash',
+               dTBTDtoTBME={'4': '2', '5': '1', '6': '3'},
+               dTBMEtoJ={'1': 1.5, '2': 2.5, '3': 0.5}):
     import os
     self.sOBDir = sOBDir
     self.sPath = sPath
@@ -46,6 +48,8 @@ class nucleus(OxbashOptFl.MEhandler):
     self.mllspec = llStateSpec
     self.writeAns(sMMDR, sPar, lsShared)
     self.sInt = lsShared[2]
+    self.dTBTDtoTBME = dTBTDtoTBME
+    self.dTBMEtoJ = dTBMEtoJ
     # copy the interaction to the working directory
     import shutil
     shutil.copyfile(sOBDir + '\\sps\\' + self.sInt+'.int', self.sPath + '\\' +
@@ -706,46 +710,55 @@ class nucleus(OxbashOptFl.MEhandler):
     import numpy as np
     import MatManip
     for lev in self.mllspec:
-        sDenFileName = self.makeEnergyName(lev[0], self.sIsospin, lev[2]) +'.tp1'
+        sDenFileName = self.makeEnergyName(lev[0], self.sIsospin, lev[2]) + \
+            '.tp' + str(lev[1])
         fDen = open(self.sPath + '\\' + self.sName + '\\' + sDenFileName, 'r')
-        tempLab =[]
+        tempLab = []
         tempDen = []
         lfOBME = self.getOBME(True)[0]
         for line in fDen:
             line = line.strip().split()
-            if len(line) >=6:
-#        take out redundant labels
+            if len(line) >= 6:
+                '''
+                    make TBTD labels consistent with the matrix element labels
+                '''
                 for nJIdx, elem in enumerate(line):
-                    if self.sForm == 'iso' and nJIdx < 4 and elem > self.nOBME:
-                        line[nJIdx] = str(int(elem) - self.nOBME)
-                if lfOBME[int(line[1])-1]<lfOBME[int(line[0])-1]:
-                    line[-1] = -float(line[-1])
+                    if nJIdx < 4:
+                        line[nJIdx] = self.dTBTDtoTBME[elem]
+                if lfOBME[int(line[1]) - 1] < lfOBME[int(line[0]) - 1]:
+                    line[-1] = (-1.0)**(self.dTBMEtoJ[line[0]] +
+                                        self.dTBMEtoJ[line[1]] -
+                                        float(line[4])) * float(line[-1])
                     temp = line[0]
                     line[0] = line[1]
                     line[1] = temp
-                if lfOBME[int(line[3])-1]<lfOBME[int(line[2])-1]:
-                    line[-1] = -float(line[-1])
+                if lfOBME[int(line[3]) - 1] < lfOBME[int(line[2]) - 1]:
+                    line[-1] = (-1.0)**(self.dTBMEtoJ[line[2]] +
+                                        self.dTBMEtoJ[line[3]] -
+                                        float(line[4])) * float(line[-1])
                     temp = line[2]
                     line[2] = line[3]
                     line[3] = temp
                 tempLab.append([int(line[nIdx]) for nIdx in range(6)])
                 tempDen.append(float(line[6]))
-
         if np.all(np.array(lnpaLab) == np.array(tempLab)) or len(lnpaLab) == 0:
             if lnpaLab == []:
                 lnpaLab = tempLab
             tempDen = np.array(tempDen)
-            tempDen.shape = [1,tempDen.size]
+            tempDen.shape = [1, tempDen.size]
             if npaTBTD == []:
                 npaTBTD = tempDen
             else:
-                npaTBTD = np.append(npaTBTD, tempDen, axis = 0)
+                npaTBTD = np.append(npaTBTD, tempDen, axis=0)
         else:
             npaTBTD = np.array(npaTBTD)
             tempDen = np.array(tempDen)
-            if len(npaTBTD.shape)<2:
+            if len(npaTBTD.shape) < 2:
                 npaTBTD.shape = [1, npaTBTD.size]
-            if len(tempDen.shape)<2:
+            if len(tempDen.shape) < 2:
                 tempDen.shape = [1, tempDen.size]
-            lnpaLab, npaTBTD = MatManip.combinedLabeledColumns(lnpaLab, npaTBTD, tempLab, tempDen)
+            lnpaLab, npaTBTD = MatManip.combinedLabeledColumns(lnpaLab,
+                                                               npaTBTD,
+                                                               tempLab,
+                                                               tempDen)
     return npaTBTD, lnpaLab
