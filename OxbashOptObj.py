@@ -846,6 +846,8 @@ class BashOpt:
                 npaETh = np.append(npaETh, tempth, axis=0)
             else:
                 npaETh = tempth
+        npaETh = np.array(npaETh)
+        npaETh.shape = [npaETh.size,1]
         npaOcc = []
         for nucleus in self.mloNuclei:
             sLevName = nucleus.getLevName()
@@ -856,6 +858,7 @@ class BashOpt:
                 npaOcc = npaTempOcc
         npaME = self.mloNuclei[0].getOBME(bAll=True)
         npaME = np.append(npaME, self.mloNuclei[0].getTBME())
+        npaME.shape = [npaME.size, 1]
         a = np.append(npaOcc, npaTBTD, axis=1)
         nlRMList = MatManip.getZeroCols(a)
         print a

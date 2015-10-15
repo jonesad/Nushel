@@ -739,6 +739,13 @@ class nucleus(OxbashOptFl.MEhandler):
                     temp = line[2]
                     line[2] = line[3]
                     line[3] = temp
+                if min(lfOBME[int(line[2]) - 1], lfOBME[int(line[3]) - 1]) <\
+                        min(lfOBME[int(line[0]) - 1], lfOBME[int(line[1]) - 1]):
+                    temp = [line[0], line[1]]
+                    line[0] = line[2]
+                    line[1] = line[3]
+                    line[2] = temp[0]
+                    line[3] = temp[1]
                 tempLab.append([int(line[nIdx]) for nIdx in range(6)])
                 tempDen.append(float(line[6]))
         if np.all(np.array(lnpaLab) == np.array(tempLab)) or len(lnpaLab) == 0:

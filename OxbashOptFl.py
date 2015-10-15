@@ -213,19 +213,19 @@ class MEhandler:
             npaME.append(float(line[6]))
           else:            
             npaME=[line[6]]
-          nElem=nElem+1
+          nElem = nElem + 1
         elif len(self.llMESpec[1])!=0 and nUnCm!=0:
-          for nLabIdx,lab in enumerate(self.llMESpec[1]):
-            if np.all(lab==temp):
-              npaME[nLabIdx]=float(line[6])
-              nElem=nElem+1
+          for nLabIdx, lab in enumerate(self.llMESpec[1]):
+            if np.all(lab == temp):
+              npaME[nLabIdx] = float(line[6])
+              nElem = nElem + 1
               break
-        nUnCm+=1
-    if (not bAll) and np.all(np.zeros([size,1])==npaME):
-      raw_input('Warning: npaTBME Returning zero array. Press enter.')
-        
+        nUnCm += 1
+    if (not bAll) and size != nElem:
+      raw_input ('Warning: npaTBME could not find all ME. Expected: ' +
+          str(size) + ' Found:' + str(nElem))
     fIntSrc.close()
-    return np.array(npaME,dtype=float)
+    return np.array(npaME, dtype=float)
 
 #set monopole matrix elements
   def writeMonoME(self, npaME):
