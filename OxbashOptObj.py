@@ -28,7 +28,7 @@ def CreateInFile(sInfilePath):
 # restriction
     fInFile.write('n\n')
 # interaction
-    fInFile.write('usdc\n')
+    fInFile.write('sdba\n')
 # formalism iso/pn
     fInFile.write('iso\n')
 # does the interaction extrapolate matrix elements
@@ -339,12 +339,8 @@ class BashOpt:
                                            temp[4], temp[5], temp[6])
                 for nJIdx in range(len(temp)-7):
                     sNewLine += sFormat2.format(temp[nJIdx + 7])
-                if len(temp) > 7:
-                    sNewLine += sFormatNew.format(npaETh[nIdx], npaETh[nIdx] -
-                                                  float(temp[-2]))
-                else:
-                    sNewLine += sFormatNew.format(npaETh[nIdx], npaETh[nIdx] -
-                                                  float(temp[-1]))
+                sNewLine += sFormatNew.format(npaETh[nIdx], npaETh[nIdx] -
+                                              float(temp[5]))
                 fOut.write(sNewLine + '\n')
             nIdx += 1
         fIn.close()
@@ -839,7 +835,9 @@ class BashOpt:
         npaETh = []
         npaTBTDLabels = np.array(npaTBTDLabels)
         for nucleus in self.mloNuclei:
-            nucleus.llMESpec[0] = []
+            nucleus.llMESpec[0] = list(np.add(range(self.mloNuclei[0].nOBME),
+                                       np.ones(self.mloNuclei[0].nOBME,
+                                               dtype=int)))
             nucleus.llMESpec[1] = npaTBTDLabels
             tempth = nucleus.getEnNu()
             if npaETh != []:
@@ -864,8 +862,6 @@ class BashOpt:
         print a
         print npaME
         print np.dot(a, npaME)
-        print self.mloNuclei[0].llMESpec
-        raw_input('enter')
         target = self.EExp - (npaETh - np.dot(a, npaME))
 #     npaWeights=numpy.zeros([npaEExp.size,npaEExp.size])
 #     for nIdx, elem in enumerate(self.npaErrors):
@@ -1612,62 +1608,7 @@ sys.path.append('C:\PythonScripts\generalmath')
 x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput.in',
              'c:\\PythonScripts\\OxBashWork\\test',
              'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=False)
-#print x.IterativeLSq(sMethod='TBTD', bMix=False, nMaxIter=60, fTolin=10**-2)
+#print x.IterativeLSq(sMethod='TBTD', bMix=False, nMaxIter=10, fTolin=10**-2)
+#print x.IterativeLSq(sMethod='single', bMix=False, nMaxIter=10, fTolin=10**-2)
 
-#x.checkMonoResponse(fIncLow=0.1, fIncHigh=0.1,nRuns=1,display=True)
-
-#ans, a, target, npaME,lnpaShortMonoLab,lnpaMonoJLab, shortdiff=x.sMono()
-#x.displayMonoResponse(lnpaShortMonoLab)
-
-#print x.CheckConvergenceSensitivity(10, 'smono', display=True)
-
-#x.addMENoise(3.0)
-
-#import numpy as np
-#base=np.array([[5,5,5,5],[4,4,4,4,],[6,6,6,6]])
-#
-#x.optimizeUniformError(sMethod='smono', lMethodArgs=base, bReset=True,
-#                       sOptMethod='simple', fTolIn=10**-2)
-
-
-#import numpy as np
-#print x.IterativeLSq(sMethod='single',bMix=False, nMaxIter=60, fTolin=10**-2)
-#base1=np.array([[1,1,1,1],[2,2,2,2],[3,3,3,3]])
-#print x.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=base1)
-#base2=np.array([[5,6,5,6], [5,4,5,4],[4,6,4,6]])
-#print x.IterativeLSq(sMethod='smono',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=base2)
-#
-#dOptions = {'disp':True, 'xtol':10**-2, 'ftol':10**-2, 'maxiter':None,
-#            'MaxFeval': 100}
-#print x.performOptimization(sMethod='Nelder-Mead', llMonoBase=np.append(base1,base2,axis=0),
-#                            dOptions=dOptions)
-#x.plotResults(sMethod='smono', bError=True)
-
-#
-#import numpy as np
-#lnpaBases=[np.array([[5,5,5,5],[4,4,4,4,],[6,6,6,6]]),np.array([[5,6,5,6], [5,4,5,4],[4,6,4,6]])]
-#print x.IterativeLSq(sMethod='csm',bMix=False, nMaxIter=60, fTolin=10**-2,methodArg=lnpaBases)
-
-#x.performOptimization()
-#x.sMethod='single'
-#err=x.calcError()[0]
-#print err
-#nSpecSize=0
-#en=x.mloNuclei[1].getEnNu(bAll=True) 
-#lHist,lBins,lMu,lSigma,nSize=x.mloNuclei[1].calcEThErr(err, nSpecSize,bPrev=True,bAllME=True)
-#nStop=8
-#x.mloNuclei[1].plotEthError(lHist[:nStop], lBins[:nStop], lMu[:nStop], lSigma[:nStop], nSize)
-
-# test the fortran fitting method
-#sys.path.append('C:\\PythonScripts\\assorted\\')
-#import os
-#import fortfitinterface
-#os.chdir('C:\\PythonScripts\\assorted\\drop\\')
-#ans, a, target, npaME, lnpaShortMonoLab, lnpaMonoJLab, shortdiff, npaTBME = x.sMono()
-#fakellnAZ = [[1,1] for i in range(a.shape[0])]
-#import numpy as np 
-## weight= np.ones(target.shape)
-#weight = 1.0 / (x.npaErrors**2 + x.fThError**2)
-#fortfitinterface.makeDatFile('C:\\PythonScripts\\assorted\\drop', fakellnAZ,
-#                             target, weight, a)
-#os.system('fit')
+ans, a, target, npaME = x.TBTDLeastSq()

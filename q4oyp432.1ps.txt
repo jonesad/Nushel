@@ -1,0 +1,31 @@
+Corrected transformation from TBTD to TBME and phase factor of index exchangd 
+still does not work. Needs furthe testing.
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+# On branch master
+# Your branch is up-to-date with 'origin/master'.
+#
+# Changes to be committed:
+#	modified:   OxbashNuclei.py
+#	modified:   OxbashNuclei.pyc
+#	modified:   OxbashOptFl.pyc
+#	modified:   OxbashOptObj.py
+#
+# Changes not staged for commit:
+#	modified:   Nushel (modified content)
+#	deleted:    NushellScripts
+#	deleted:    NushellUtil.py
+#	deleted:    NushellUtil.pyc
+#	deleted:    ShellNuclei.py
+#	deleted:    ShellNuclei.pyc
+#	deleted:    ShellOptFl.py
+#	deleted:    ShellOptFl.pyc
+#	deleted:    ShellOptObj.py
+#	deleted:    USDBOpt.py
+#	deleted:    c_OptInput.in
+#	deleted:    c_errors.dat
+#	deleted:    enex_errors.dat
+#	deleted:    errors - Copy (2).dat
+#	deleted:    errors.dat
+#
+

@@ -223,7 +223,7 @@ class MEhandler:
         nUnCm += 1
     if (not bAll) and size != nElem:
       raw_input ('Warning: npaTBME could not find all ME. Expected: ' +
-          str(size) + ' Found:' + str(nElem))
+          str(size) + ' Found:' + str(nElem)+ '. \n Press Enter to continnue...')
     fIntSrc.close()
     return np.array(npaME, dtype=float)
 

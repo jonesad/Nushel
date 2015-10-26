@@ -22,7 +22,8 @@ class nucleus(OxbashOptFl.MEhandler):
                llMESpec, useGS, sForm, initialize=True, bExtrap=True,
                llStateSpec=[], sOBDir='c:\\oxbash',
                dTBTDtoTBME={'4': '2', '5': '1', '6': '3'},
-               dTBMEtoJ={'1': 1.5, '2': 2.5, '3': 0.5}):
+               dTBMEtoJ={'1': 1.5, '2': 2.5, '3': 0.5},
+               dRank={'1': 2, '2': 1, '3': 3}):
     import os
     self.sOBDir = sOBDir
     self.sPath = sPath
@@ -48,6 +49,7 @@ class nucleus(OxbashOptFl.MEhandler):
     self.mllspec = llStateSpec
     self.writeAns(sMMDR, sPar, lsShared)
     self.sInt = lsShared[2]
+    self.dRank = dRank
     self.dTBTDtoTBME = dTBTDtoTBME
     self.dTBMEtoJ = dTBMEtoJ
     # copy the interaction to the working directory
@@ -684,7 +686,7 @@ class nucleus(OxbashOptFl.MEhandler):
     '''
     fLabs = open(self.sOBDir + '\\sps\\label.dat','r')
     if sType == 'MS':
-      nLabColIdx = 0
+      nLabColIdx = 1
       nCharColIdx = 2
     elif sType == 'Int':
       nLabColIdx = 1
@@ -725,29 +727,49 @@ class nucleus(OxbashOptFl.MEhandler):
                 for nJIdx, elem in enumerate(line):
                     if nJIdx < 4:
                         line[nJIdx] = self.dTBTDtoTBME[elem]
-                if lfOBME[int(line[1]) - 1] < lfOBME[int(line[0]) - 1]:
-                    line[-1] = (-1.0)**(self.dTBMEtoJ[line[0]] +
-                                        self.dTBMEtoJ[line[1]] -
-                                        float(line[4])) * float(line[-1])
+                if self.dRank[line[1]] < self.dRank[line[0]]:
+                    phase = (self.dTBMEtoJ[line[0]] + self.dTBMEtoJ[line[1]] -
+                             float(line[4]) + 1.0)
+                    line[-1] = (-1.0)**phase * float(line[-1])
                     temp = line[0]
                     line[0] = line[1]
                     line[1] = temp
-                if lfOBME[int(line[3]) - 1] < lfOBME[int(line[2]) - 1]:
-                    line[-1] = (-1.0)**(self.dTBMEtoJ[line[2]] +
-                                        self.dTBMEtoJ[line[3]] -
-                                        float(line[4])) * float(line[-1])
+                if self.dRank[line[3]] < self.dRank[line[2]]:
+                    phase = (self.dTBMEtoJ[line[2]] + self.dTBMEtoJ[line[3]] -
+                             float(line[4]) + 1.0)
+                    line[-1] = (-1.0)**phase * float(line[-1])
                     temp = line[2]
                     line[2] = line[3]
                     line[3] = temp
-                if min(lfOBME[int(line[2]) - 1], lfOBME[int(line[3]) - 1]) <\
-                        min(lfOBME[int(line[0]) - 1], lfOBME[int(line[1]) - 1]):
+                if (self.dRank[line[2]] + self.dRank[line[3]]) <\
+                        (self.dRank[line[0]] + self.dRank[line[1]]):
                     temp = [line[0], line[1]]
                     line[0] = line[2]
                     line[1] = line[3]
                     line[2] = temp[0]
                     line[3] = temp[1]
-                tempLab.append([int(line[nIdx]) for nIdx in range(6)])
-                tempDen.append(float(line[6]))
+                elif (self.dRank[line[2]] + self.dRank[line[3]]) ==\
+                        (self.dRank[line[0]] + self.dRank[line[1]]) and\
+                        min(self.dRank[line[2]], self.dRank[line[3]]) <\
+                        min(self.dRank[line[0]], self.dRank[line[1]]):
+                    temp = [line[0], line[1]]
+                    line[0] = line[2]
+                    line[1] = line[3]
+                    line[2] = temp[0]
+                    line[3] = temp[1]
+                temp = [int(line[nIdx]) for nIdx in range(6)]
+                if tempLab != []:
+                    isit = False
+                    for nLabIdx, lab in enumerate(tempLab):
+                        if np.all(lab == temp):
+                            tempDen[nLabIdx] += float(line[-1])
+                            isit = True
+                    if not isit:
+                        tempLab.append(temp)
+                        tempDen.append(float(line[-1]))
+                else:
+                    tempLab.append(temp)
+                    tempDen.append(float(line[-1]))
         if np.all(np.array(lnpaLab) == np.array(tempLab)) or len(lnpaLab) == 0:
             if lnpaLab == []:
                 lnpaLab = tempLab
