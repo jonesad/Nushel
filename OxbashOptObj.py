@@ -1607,7 +1607,7 @@ sys.path.append('C:\PythonScripts\generalmath')
 
 x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput.in',
              'c:\\PythonScripts\\OxBashWork\\test',
-             'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=False)
+             'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=True)
 #print x.IterativeLSq(sMethod='TBTD', bMix=False, nMaxIter=10, fTolin=10**-2)
 #print x.IterativeLSq(sMethod='single', bMix=False, nMaxIter=10, fTolin=10**-2)
 

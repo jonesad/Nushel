@@ -138,22 +138,24 @@ class nucleus(OxbashOptFl.MEhandler):
   def getEnNu(self,bAll=False):
     sLevName=self.getLevName()
     afETh=[]
+    sortKey=[]
     lsNewList=[]
     nIdx=0
     sFPath=self.sPath+'\\'+self.sName+"\\"+sLevName
     fTh=open(sFPath)
     for line in fTh:
       line=line.strip().split()
-      if bAll==False:
+      if not bAll:
         for lev in self.mllspec:
           if len(line)==7 and lev[0]==line[4] and lev[1]==line[1] and lev[2]==line[6]:
             if self.useGS==0:
               afETh.append(float(line[3]))
             elif self.useGS==1:
               afETh.append(float(line[2]))
+            sortKey.append(lev)
             break
           #ignore first few lines and unbound states
-      elif bAll==True and len(line)>=6 and nIdx>5 and float(line[2])<0.:
+      elif bAll and len(line)>=6 and nIdx>5 and float(line[2])<0.:
         lsNewList.append(line[4]+' '+line[1]+' '+line[6])
       nIdx+=1
 #    change level spec to all levels and then get all levels on the list   
@@ -166,6 +168,15 @@ class nucleus(OxbashOptFl.MEhandler):
       print "Requested:", len(self.mllspec)
       print "Found:", len(afETh)
     fTh.close()
+    if not bAll:
+      import numpy as np
+      newEth = []
+      for lev in self.mllspec:
+        for nIdx, key in enumerate(sortKey):
+            if np.all(lev == key):
+                newEth.append(afETh[nIdx])
+                break
+      afETh = newEth
     return afETh 
 
 # run the shell model calculation        
@@ -280,24 +291,39 @@ class nucleus(OxbashOptFl.MEhandler):
       fIn=open(self.sPath+'\\'+self.sName+'\\'+sLevName[:-4]+'.occ', 'r')
       npaOcc=[]
       nIdx=0
+      sortKey = []
       for line in fIn:
         line=line.strip().split()
         try: 
             int(line[3])
         except:
             continue
-        for nlevIdx,lev in enumerate(self.mllspec):
+        for nlevIdx, lev in enumerate(self.mllspec):
           if (int(line[3]) == int(2 * float(eval(lev[0]+'.0'))) and
               int(line[1]) == int(lev[1]) and line[4] == lev[2]):
             temp = line[5:5 + self.countOBME()]
             temp=[temp]
+            sortKey.append(lev)
             if npaOcc!=[]:              
               npaOcc=np.append(npaOcc, temp, axis=0)              
             else:
               npaOcc=temp
       fIn.close()
-      
-      return np.array(npaOcc,dtype=float)
+      newOcc=[]
+      for lev in self.mllspec:
+          for nIdx, key in enumerate(sortKey):
+              if np.all(key == lev):
+                  newOcc.append(npaOcc[nIdx])
+#      print 'spec'
+#      print self.mllspec
+#      print 'npaOcc'
+#      print npaOcc
+#      print 'key'
+#      print sortKey
+#      print 'newOcc'
+#      print newOcc
+#      raw_input('enter')
+      return np.array(newOcc, dtype=float)
 #From the occupations listed return only the ones associated with SPE on the 
 #llMESpec[0] list     
   def getReducedOcc(self):
@@ -554,7 +580,7 @@ class nucleus(OxbashOptFl.MEhandler):
       sOccName = sOccName[:-3] + 'occ'
       fOut = open(sEnPath + sOccName, 'w')
       sHFormat = '{:>5}{:>5}{:>8}{:>3}{:>3}'+'{:>8}'*nNumSPS
-      sFormat = '{:>5d}{:>5d}{:>8.3f}{:>3}{:>3}'+'{:>8.2f}'*nNumSPS
+      sFormat = '{:>5d}{:>5d}{:>8.3f}{:>3}{:>3}'+'{:>8.4f}'*nNumSPS
       fOut.write(sHFormat.format('N', 'nJ', 'E_ex', '2J', 'p', *lSPList)+'\n')      
       for nIdx, elem in enumerate(npaOutray):
           fOut.write(sFormat.format(nIdx, elem['nJ'],
@@ -724,6 +750,8 @@ class nucleus(OxbashOptFl.MEhandler):
                 '''
                     make TBTD labels consistent with the matrix element labels
                 '''
+                if np.all(self.nAZ==[21,8]):
+                    print 'original: ', line
                 for nJIdx, elem in enumerate(line):
                     if nJIdx < 4:
                         line[nJIdx] = self.dTBTDtoTBME[elem]
@@ -758,6 +786,9 @@ class nucleus(OxbashOptFl.MEhandler):
                     line[2] = temp[0]
                     line[3] = temp[1]
                 temp = [int(line[nIdx]) for nIdx in range(6)]
+                if np.all(self.nAZ==[21,8]):
+                    print 'transformed: ', temp, line[-1]
+#                    raw_input('Press enter...')
                 if tempLab != []:
                     isit = False
                     for nLabIdx, lab in enumerate(tempLab):
