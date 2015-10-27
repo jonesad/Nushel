@@ -56,6 +56,8 @@ class nucleus(OxbashOptFl.MEhandler):
     import shutil
     shutil.copyfile(sOBDir + '\\sps\\' + self.sInt+'.int', self.sPath + '\\' +
                     self.sName + '\\' + self.sInt + '.int')
+    shutil.copyfile(sOBDir + '\\label.tp', self.sPath + '\\' +
+                    self.sName + '\\label.tp')
     self.nOBME = self.countOBME()
     if initialize:
         self.runSM()
