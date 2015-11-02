@@ -54,8 +54,9 @@ class nucleus(OxbashOptFl.MEhandler):
     self.dTBMEtoJ = dTBMEtoJ
     # copy the interaction to the working directory
     import shutil
-    shutil.copyfile(sOBDir + '\\sps\\' + self.sInt+'.int', self.sPath + '\\' +
-                    self.sName + '\\' + self.sInt + '.int')
+    sIntDest = self.sPath + '\\' + self.sName + '\\' + self.sInt + '.int'
+    if not os.path.isfile(sIntDest):
+        shutil.copyfile(sOBDir + '\\sps\\' + self.sInt+'.int', sIntDest)
     shutil.copyfile(sOBDir + '\\label.tp', self.sPath + '\\' +
                     self.sName + '\\label.tp')
     self.nOBME = self.countOBME()
@@ -702,6 +703,7 @@ class nucleus(OxbashOptFl.MEhandler):
         sVal = str(self.nVal/2)
     sName += dCode[sVal]
     sIntCode = self.lookupLab(self.sInt, 'Int')
+#    sIntCode = 'y'
     if type(sIntCode) == type(None):
         sIntCode = 'y'        
     sName += sIntCode

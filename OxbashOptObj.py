@@ -413,8 +413,8 @@ class BashOpt:
             lME[0] = npaGuess
             nIter += 1
 # restore the original MESpec
-            for nucleus in self.mloNuclei:
-                nucleus.llMESpec = list(llOriginalMESpec)
+#            for nucleus in self.mloNuclei:
+#                nucleus.llMESpec = list(llOriginalMESpec)
             print lME
             print fResNew
         if abs(lRes[0] - lRes[1]) < fTol:
@@ -1568,6 +1568,7 @@ class BashOpt:
         return temp[0], npaME, npaTBMESpec
 
     def compositeSingleMono(self, nMaxIter, fTolIn, lnpaBases):
+        import numpy as np
         temp = self.IterativeLSq(sMethod='single', bMix=False,
                                  nMaxIter=nMaxIter, fTolin=fTolIn)
         llMESpec = temp[-1]
@@ -1606,9 +1607,10 @@ sys.path.append('c:\\PythonScripts\\OxBashScripts\\')
 sys.path.append('C:\PythonScripts\generalmath')
 
 x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput.in',
-             'c:\\PythonScripts\\OxBashWork\\test',
-             'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=False)
-#print x.IterativeLSq(sMethod='TBTD', bMix=False, nMaxIter=10, fTolin=10**-2)
+            'c:\\PythonScripts\\OxBashWork\\test',
+            'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=True)
+print x.IterativeLSq(sMethod='TBTD', bMix=False, nMaxIter=10, fTolin=10**-2)
 #print x.IterativeLSq(sMethod='single', bMix=False, nMaxIter=10, fTolin=10**-2)
 
-ans, a, target, npaME = x.TBTDLeastSq()
+#ans, a, target, npaME = x.TBTDLeastSq()
+

@@ -82,8 +82,8 @@ class MEhandler:
     for line in fIntSrc:
       if line[0]!='!':
         sNew=''
-        sStart="{0:3}{1:>11.4f}"
-        sNext="{0:>10.4f}"
+        sStart="{0:3}{1:>9.5f}"
+        sNext="{0:>9.5f}"
         templine=line.strip().split()        
         if len(self.llMESpec[0]) != 0 and nLine == 0:
 #          print "Writing only listed ME"
@@ -104,7 +104,7 @@ class MEhandler:
 #              print "I am elem", elem
               sNew+=sNext.format(float(elem))
 #          print sNew
-          fIntOut.write(sNew+'\n')
+          fIntOut.write(' '+sNew+'\n')
         else:
           fIntOut.write(line)
         nLine+=1
@@ -149,7 +149,7 @@ class MEhandler:
     fIntOut=open(self.makeIntPath(''),'w')
     sStart="{0:>4}"
     sNext="{0:>3}"
-    sEnd="{0:>4}{1:>3}{2:>14.5f}"
+    sEnd="{0:>4}{1:>3}{2:>9.4f}"
     nUnCm=0
     if self.llMESpec[1].shape[0]!=npaME.size:
       print 'Number of ME Labels does not match number of ME to be written: ' + str(self.llMESpec[1].shape[0])+ ' labels and ' + str(npaME.size) + ' ME.'
@@ -171,7 +171,9 @@ class MEhandler:
               else:
                 temp2=[int(temp1[nIdx])]
           for nElem, npaMELab in enumerate(self.llMESpec[1]):
-            if len(self.llMESpec[1])!=0 and nUnCm!=0 and np.all(npaMELab == np.array(temp2)):
+            if len(self.llMESpec[1])!=0 and nUnCm!=0 and \
+               np.all(npaMELab == np.array(temp2, dtype=int)):
+
               sNew=sNew+sStart.format(temp1[0])          
               for i in range(1,4):
                 sNew=sNew+sNext.format(temp1[i])
@@ -188,6 +190,12 @@ class MEhandler:
         fIntOut.write(line)
     fIntSrc.close()
     fIntOut.close()
+    sOpFile = self.makeIntPath('')
+    sOpFile = sOpFile[:-3] + 'op'
+    import os
+    os.remove(sOpFile)
+    os.system('shell '+self.sName+'.ans')
+
 #Get TBME
   def getTBME(self, bAll=False, nExtrap=0):
     fIntSrc=open(self.makeIntPath('',nExtrap),'r') 
