@@ -754,8 +754,6 @@ class nucleus(OxbashOptFl.MEhandler):
                 '''
                     make TBTD labels consistent with the matrix element labels
                 '''
-                if np.all(self.nAZ==[21,8]):
-                    print 'original: ', line
                 for nJIdx, elem in enumerate(line):
                     if nJIdx < 4:
                         line[nJIdx] = self.dTBTDtoTBME[elem]
@@ -790,9 +788,6 @@ class nucleus(OxbashOptFl.MEhandler):
                     line[2] = temp[0]
                     line[3] = temp[1]
                 temp = [int(line[nIdx]) for nIdx in range(6)]
-                if np.all(self.nAZ==[21,8]):
-                    print 'transformed: ', temp, line[-1]
-#                    raw_input('Press enter...')
                 if tempLab != []:
                     isit = False
                     for nLabIdx, lab in enumerate(tempLab):

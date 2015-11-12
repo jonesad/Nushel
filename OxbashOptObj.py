@@ -859,18 +859,43 @@ class BashOpt:
         npaME.shape = [npaME.size, 1]
         a = np.append(npaOcc, npaTBTD, axis=1)
         nlRMList = MatManip.getZeroCols(a)
-        print a
-        print npaME
-        print np.dot(a, npaME)
+        if nlRMList != []:
+#            temp = [elem for elem in range(a.shape[1]) if elem not in nlRMList]
+#            lnTBMERmList = nlRMList.extend(temp[:-3])
+            lnTBMERmList = [elem for elem in nlRMList if elem > 2]
+            a= MatManip.rmSlice(lnTBMERmList, a, 1)
+            npaME = MatManip.rmSlice(lnTBMERmList, npaME, 0)
+            lnTBMERmList = np.subtract(lnTBMERmList,3)
+            newTBMEList = MatManip.rmSlice(lnTBMERmList,
+                                           self.mloNuclei[0].llMESpec[1], 0)
+            for nuc in self.mloNuclei:
+                nuc.llMESpec[1] = newTBMEList
         target = self.EExp - (npaETh - np.dot(a, npaME))
-#     npaWeights=numpy.zeros([npaEExp.size,npaEExp.size])
-#     for nIdx, elem in enumerate(self.npaErrors):
-#       print elem
-#       npaWeights[nIdx,nIdx]=1.0/(elem**2)
-#     ans = numpy.linalg.lstsq(numpy.dot(npaWeights, a), numpy.dot(npaWeights,
-#                                                                   target))
-        ans = np.linalg.lstsq(a, target)
-        ans = ans[0]
+        npaWeights = np.zeros([self.EExp.size, self.EExp.size])
+        npaErrors = np.ones(*(self.npaErrors.shape))*.1 + self.npaErrors
+        for nIdx, elem in enumerate(npaErrors):
+            npaWeights[nIdx, nIdx] = 1.0 / (elem**2)
+        aprime = np.dot(npaWeights, a)
+        bprime = np.dot(npaWeights, target)
+#        svd
+        [u, s, vt] = np.linalg.svd(aprime)
+        Sd = np.zeros((vt.shape[0], u.shape[1]))
+        fCutOff = 10.0**(-5)*float(np.amax(a.shape))*s[0]
+        print s
+        print fCutOff
+        raw_input('Eneter')
+        for i, sv in enumerate(s):
+            if sv > fCutOff:
+                Sd[i, i] = 1./sv
+            else:
+                break
+        api = np.dot(np.dot(np.transpose(vt), Sd), np.transpose(u))
+        ans = np.dot(api, bprime)
+#        weighted least square
+#        ans = np.linalg.lstsq(aprime, bprime)
+#        least square
+#        ans = np.linalg.lstsq(a, target)
+#        ans = ans[0]
         return ans, a, target, npaME
 
 # quickly set manbody variable
