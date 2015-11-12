@@ -859,17 +859,55 @@ class BashOpt:
         npaME.shape = [npaME.size, 1]
         a = np.append(npaOcc, npaTBTD, axis=1)
         nlRMList = MatManip.getZeroCols(a)
+        newTBMEList = []        
         if nlRMList != []:
-#            temp = [elem for elem in range(a.shape[1]) if elem not in nlRMList]
-#            lnTBMERmList = nlRMList.extend(temp[:-3])
             lnTBMERmList = [elem for elem in nlRMList if elem > 2]
             a= MatManip.rmSlice(lnTBMERmList, a, 1)
             npaME = MatManip.rmSlice(lnTBMERmList, npaME, 0)
             lnTBMERmList = np.subtract(lnTBMERmList,3)
             newTBMEList = MatManip.rmSlice(lnTBMERmList,
                                            self.mloNuclei[0].llMESpec[1], 0)
+        newOBMEList =[]
+#       check if llsq problem is valid
+        if a.shape[0] < a.shape[1]:
+            print 'Warning sysetem underdeterimined with:'
+            print a.shape[1], 'unknowns and only', a.shape[0], 'equations.'
+            print 'Removing least relevant unknowns.'
+            nRem = a.shape[1] - a.shape[0]
+            nlRmList = range(nRem)
+            nlTest = [i + nRem for i in range(a.shape[1] - nRem)]
+            lfSize = []
+            for nColIdx in range(a.shape[1]):
+                lfSize.append(np.linalg.norm(a[:, nColIdx]))
+            for nSizeIdx in nlTest:
+                for nIdx, nRmIdx in enumerate(nlRmList):
+                    if lfSize[nSizeIdx] < lfSize[nRmIdx]:
+                        nlRmList[nIdx] = nSizeIdx
+                        break
+            lnOBMERM = []
+            lnTBMERM = []            
+            for elem in nlRmList:
+                if elem > self.mloNuclei[0].nOBME:
+                    lnTBMERM.append(elem - self.mloNuclei[0].nOBME)
+                elif elem < self.mloNuclei[0].nOBME:
+                    lnOBMERM.append(elem)
+            if nlRmList != []:
+                a = MatManip.rmSlice(nlRmList, a, 1)
+                npaME = MatManip.rmSlice(nlRmList, npaME, 0)
+                if lnOBMERM != []:
+                    newOBMEList = MatManip.rmSlice(lnOBMERM,
+                                                   self.mloNuclei[0].llMESpec[0],
+                                                   0)
+                if lnTBMERM != []:
+                    newTBMEList = MatManip.rmSlice(lnTBMERM, newTBMEList, 0)
+        if newTBMEList != []:
+            if newOBMEList!= []:
+                newMESpec = [newOBMEList, newTBMEList]
+            else:
+                newMESpec= [self.mloNuclei[0].llMESpec[0], newTBMEList]
+            print [len(newMESpec[0]),len(newMESpec[1])]
             for nuc in self.mloNuclei:
-                nuc.llMESpec[1] = newTBMEList
+                nuc.llMESpec = newMESpec
         target = self.EExp - (npaETh - np.dot(a, npaME))
         npaWeights = np.zeros([self.EExp.size, self.EExp.size])
         npaErrors = np.ones(*(self.npaErrors.shape))*.1 + self.npaErrors
@@ -877,26 +915,57 @@ class BashOpt:
             npaWeights[nIdx, nIdx] = 1.0 / (elem**2)
         aprime = np.dot(npaWeights, a)
         bprime = np.dot(npaWeights, target)
+        ans = self.linCom(aprime, npaME, bprime)
 #        svd
-        [u, s, vt] = np.linalg.svd(aprime)
-        Sd = np.zeros((vt.shape[0], u.shape[1]))
-        fCutOff = 10.0**(-5)*float(np.amax(a.shape))*s[0]
-        print s
-        print fCutOff
-        raw_input('Eneter')
-        for i, sv in enumerate(s):
-            if sv > fCutOff:
-                Sd[i, i] = 1./sv
-            else:
-                break
-        api = np.dot(np.dot(np.transpose(vt), Sd), np.transpose(u))
-        ans = np.dot(api, bprime)
+#        [u, s, vt] = np.linalg.svd(aprime)
+#        Sd = np.zeros((vt.shape[0], u.shape[1]))
+#        fCutOff = 10.0**(-5)*float(np.amax(a.shape))*s[0]
+#        print s
+#        print fCutOff
+#        raw_input('Eneter')
+#        for i, sv in enumerate(s):
+#            if sv > fCutOff:
+#                Sd[i, i] = 1./sv
+#            else:
+#                break
+#        api = np.dot(np.dot(np.transpose(vt), Sd), np.transpose(u))
+#        ans = np.dot(api, bprime)
 #        weighted least square
 #        ans = np.linalg.lstsq(aprime, bprime)
 #        least square
 #        ans = np.linalg.lstsq(a, target)
 #        ans = ans[0]
         return ans, a, target, npaME
+
+# lst square solution to matrix a, with initial guess xbg, target b, and an 
+# epsilon threshold for determining well determined lincoms
+    def linCom(self, a, xbg, b, epsilon=0):
+        import numpy as np
+        [u, s, vt] = np.linalg.svd(a)
+#        use default value if no valid epsilon is given 
+        if epsilon <= 0:
+            print 'object: oxbashopt. method: linCom; using default epsilon.'
+            epsilon = np.amax(s)*0.01
+        if a.shape[1] > a.shape[0]:
+            print 'Warning: System of equations is underdetermined.'
+            print a.shape[0], 'equations', a.shape[1], 'unknown quantities.'
+        e = np.dot(np.transpose(u), b)
+        d = np.zeros([a.shape[1], a.shape[0]])
+        d[:np.amin(d.shape), :np.amin(d.shape)] = np.diag(1./s)
+        yn = np.dot(d, e)
+        ys = np.dot(vt, xbg)
+        y = []
+        numbelow = 0
+        for i in range(s.size):
+            if s[i] > epsilon:
+                y.append(yn[i])
+            else:
+                y.append(ys[i])
+                numbelow += 1
+        print numbelow, 'lincoms of ', s.size, 'are not well determined.'
+        y = np.array(y)
+        y.shape = [vt.shape[0], 1]
+        return np.dot(np.transpose(vt), y)
 
 # quickly set manbody variable
     def initmanbody(self):
