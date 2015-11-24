@@ -31,7 +31,7 @@ def CreateInFile(sInfilePath):
     fInFile.write('sdba\n')
 # formalism iso/pn
     fInFile.write('iso\n')
-# does the interaction extrapolate matrix elements
+# does the interaction extrapolate matrix elements based on mass dependence
     fInFile.write('False\n')
 # number of nuclei used in optimization
     fInFile.write('10\n')
@@ -547,44 +547,122 @@ class BashOpt:
                 self.lsShared.append(fIn.readline().strip('\n'))
             self.sForm = fIn.readline().strip('\n')
             self.bExtrap = bool(eval(fIn.readline().strip('\n')))
-            self.mnNuclei = int(fIn.readline().strip('\n'))
+# check if the a number was passed if it was rad the data from this file if not
+# assume it is a file anf call a new script to solve the problem.
             self.mloNuclei = []
-            for nIdx in range(self.mnNuclei):
-                '''
-                    read in the variables to pass to the nucleus constructor
-                    constructor signature:
-                    __init__(self,  nZ, nA, fGSE, fError, sPath, sMMDR, sPar,
-                             lsShared,llMESpec,useGS,sForm,initialize=True,
-                             bExtrap=True)
-                '''
-                nZ = int(fIn.readline())
-                nA = int(fIn.readline())
-                nVal = int(fIn.readline())
-                templine = fIn.readline().strip().split()
-                fGSE = float(templine[0])
-                fError = float(templine[1])
-                sMMDR = fIn.readline().strip('\n')
-                sPar = fIn.readline().strip('\n')
-                temp = int(fIn.readline())
-                llStateSpec = []
-                for iii in range(temp):
-                    line = fIn.readline().strip('\n')
-                    line = line.split()
-                    llStateSpec.append(line[:3])
-                    self.EExp.append(line[3])
-                    self.npaErrors.append(line[4])
-                tempnuc = OxbashNuclei.nucleus(nZ, nA, nVal, fGSE, fError,
-                                              self.sOutPath, sMMDR, sPar,
-                                              self.lsShared, llMESpec,
-                                              self.useGS, self.sForm,
-                                              initialize, self.bExtrap,
-                                              llStateSpec)
-                tempnuc.setmanBody(anBody)
-                self.mloNuclei.append(tempnuc)
+            testline = fIn.readline().strip('\n')
+            try:
+                self.mnNuclei = int(testline)
+                for nIdx in range(self.mnNuclei):
+                    '''
+                        read in the variables to pass to the nucleus constructor
+                        constructor signature:
+                        __init__(self,  nZ, nA, fGSE, fError, sPath, sMMDR, sPar,
+                                 lsShared,llMESpec,useGS,sForm,initialize=True,
+                                 bExtrap=True)
+                    '''
+                    nZ = int(fIn.readline())
+                    nA = int(fIn.readline())
+                    nVal = int(fIn.readline())
+                    templine = fIn.readline().strip().split()
+                    fGSE = float(templine[0])
+                    fError = float(templine[1])
+                    sMMDR = fIn.readline().strip('\n')
+                    sPar = fIn.readline().strip('\n')
+                    temp = int(fIn.readline())
+                    llStateSpec = []
+                    for iii in range(temp):
+                        line = fIn.readline().strip('\n')
+                        line = line.split()
+                        llStateSpec.append(line[:3])
+                        self.EExp.append(line[3])
+                        self.npaErrors.append(line[4])
+                        tempnuc = OxbashNuclei.nucleus(nZ, nA, nVal, fGSE,
+                                                       fError, self.sOutPath,
+                                                       sMMDR, sPar,
+                                                       self.lsShared, llMESpec,
+                                                       self.useGS, self.sForm,
+                                                       initialize,
+                                                       self.bExtrap,
+                                                       llStateSpec)
+                    tempnuc.setmanBody(anBody)
+                    self.mloNuclei.append(tempnuc)
+                import numpy as np
+                self.npaErrors = np.array(self.npaErrors, dtype=float)
+                self.EExp = np.array(self.EExp, dtype=float)
+            except:
+                self.readDAI(testline, initialize)
+            fIn.close()
+
+
+#   reads BAB's SD shell fitting information 
+    def readDAI(self, sDAIpath, initialize):
         import numpy as np
-        self.npaErrors = np.array(self.npaErrors, dtype=float)
-        self.EExp = np.array(self.EExp, dtype=float)
-        fIn.close()
+        import OxbashNuclei
+        from Discrete import GCDofList
+        llMESpec = [[], []]
+        anBody = 3
+        import os.path
+        if os.path.isfile(sDAIpath):
+            fDAI = open(sDAIpath, 'r')
+        else:
+            print ('Error: In OxbashOptObj.py -> readDAI "' + sDAIpath +
+                   '" is not a valid path.')
+            return 'error'
+        lnLastAI = []
+        npa2JnJ = []
+        sMMDRform = ' {:>2.1f}, {:>2.1f}, {:>2.1f}\n'
+        mnNuclei = 0
+        for line in fDAI:
+            line = line.strip().split()
+            lnCurentAI = [int(line[0]), int(line[1])]
+            print np.all(lnLastAI != lnCurentAI)
+            if np.all(lnLastAI != lnCurentAI):
+                mnNuclei += 1
+# if this is not the first nucleus write the one you just read in
+                print lnLastAI != []
+                if lnLastAI != []:
+                    fMin = np.amin(npa2JnJ[:, 0])/2.
+                    fMax = np.amax(npa2JnJ[:, 0])/2.
+                    fDeltaJ = GCDofList(np.diff(npa2JnJ[:, 0]))/2.
+                    sMMDR = sMMDRform.format(fMin, fMax, fDeltaJ)
+                    llStateSpec = []
+                    sdefpar = '+1'
+                    for nIdx in range(npa2JnJ.shape[0]):
+                        j = int(npa2JnJ[nIdx, 0])
+                        if j % 2 != 0:
+                            j = str(j)+'/2'
+                        else:
+                            j = str(j/2)
+                        nj= str(npa2JnJ[nIdx, 0])
+                        llStateSpec.append([j, nj, sdefpar])
+                    tempnuc = OxbashNuclei.nucleus(nZ, nA, nVal, fGSE, fError,
+                                                   self.sOutPath, sMMDR, sPar,
+                                                   self.lsShared, llMESpec,
+                                                   self.useGS, self.sForm,
+                                                   initialize, self.bExtrap,
+                                                   llStateSpec)
+                    tempnuc.setmanBody(anBody)
+                    self.mloNuclei.append(tempnuc)
+# get as much info as you can about the new nucleus from first line
+                nA = int(line[0])
+                nVal= nA - 16
+                fGSE = 0.0 # GSE is included in the numbers so just set to zero
+                fError = 0.0 # see above
+                sPar = '0'
+                nZ = nVal - int(line[1]) + 8
+                npa2JnJ = np.array([int(line[2]), int(line[3])])
+                npa2JnJ.shape = [1, 2]
+            else:
+                temp = np.array([int(line[2]), int(line[3])])
+                temp.shape = [1, 2]
+                npa2JnJ = np.append(npa2JnJ, temp, 0)
+            self.EExp.append(line[4])
+            self.npaErrors.append(line[5])
+            lnLastAI = [num for num in lnCurentAI]
+        self.mnNuclei = mnNuclei
+        fDAI.close()
+
 
 # The objective function takes the array of matrix elements
     def obj(self, npaME):
@@ -872,42 +950,45 @@ class BashOpt:
         if a.shape[0] < a.shape[1]:
             print 'Warning sysetem underdeterimined with:'
             print a.shape[1], 'unknowns and only', a.shape[0], 'equations.'
-            print 'Removing least relevant unknowns.'
+            print 'Removing a subset of unknowns.'
             nRem = a.shape[1] - a.shape[0]
-            nlRmList = range(nRem)
-            nlTest = [i + nRem for i in range(a.shape[1] - nRem)]
-            lfSize = []
-            for nColIdx in range(a.shape[1]):
-                lfSize.append(np.linalg.norm(a[:, nColIdx]))
-            for nSizeIdx in nlTest:
-                for nIdx, nRmIdx in enumerate(nlRmList):
-                    if lfSize[nSizeIdx] < lfSize[nRmIdx]:
-                        nlRmList[nIdx] = nSizeIdx
-                        break
-            lnOBMERM = []
-            lnTBMERM = []            
-            for elem in nlRmList:
-                if elem > self.mloNuclei[0].nOBME:
-                    lnTBMERM.append(elem - self.mloNuclei[0].nOBME)
-                elif elem < self.mloNuclei[0].nOBME:
-                    lnOBMERM.append(elem)
-            if nlRmList != []:
-                a = MatManip.rmSlice(nlRmList, a, 1)
-                npaME = MatManip.rmSlice(nlRmList, npaME, 0)
-                if lnOBMERM != []:
-                    newOBMEList = MatManip.rmSlice(lnOBMERM,
-                                                   self.mloNuclei[0].llMESpec[0],
-                                                   0)
-                if lnTBMERM != []:
-                    newTBMEList = MatManip.rmSlice(lnTBMERM, newTBMEList, 0)
-        if newTBMEList != []:
-            if newOBMEList!= []:
-                newMESpec = [newOBMEList, newTBMEList]
-            else:
-                newMESpec= [self.mloNuclei[0].llMESpec[0], newTBMEList]
-            print [len(newMESpec[0]),len(newMESpec[1])]
+            nlRmList = list(range(a.shape[1]-nRem, a.shape[1]))
+            a = MatManip.rmSlice(nlRmList, a, 1)
+            npaME = MatManip.rmSlice(nlRmList, npaME, 0)
+            newTBMEList = MatManip.rmSlice(np.subtract(nlRmList, self.mloNuclei[0].nOBME), newTBMEList, 0)
+#            nlTest = [i + nRem for i in range(a.shape[1] - nRem)]
+#            lfSize = []
+#            for nColIdx in range(a.shape[1]):
+#                lfSize.append(np.linalg.norm(a[:, nColIdx]))
+#            for nSizeIdx in nlTest:
+#                for nIdx, nRmIdx in enumerate(nlRmList):
+#                    if lfSize[nSizeIdx] < lfSize[nRmIdx]:
+#                        nlRmList[nIdx] = nSizeIdx
+#                        break
+#            lnOBMERM = []
+#            lnTBMERM = []            
+#            for elem in nlRmList:
+#                if elem > self.mloNuclei[0].nOBME:
+#                    lnTBMERM.append(elem - self.mloNuclei[0].nOBME)
+#                elif elem < self.mloNuclei[0].nOBME:
+#                    lnOBMERM.append(elem)
+#            if nlRmList != []:
+#                a = MatManip.rmSlice(nlRmList, a, 1)
+#                npaME = MatManip.rmSlice(nlRmList, npaME, 0)
+#                if lnOBMERM != []:
+#                    newOBMEList = MatManip.rmSlice(lnOBMERM,
+#                                                   self.mloNuclei[0].llMESpec[0],
+#                                                   0)
+#                if lnTBMERM != []:
+#                    newTBMEList = MatManip.rmSlice(lnTBMERM, newTBMEList, 0)
+#        if newTBMEList != []:
+#            if newOBMEList!= []:
+#                newMESpec = [newOBMEList, newTBMEList]
+#            else:
+#                newMESpec= [self.mloNuclei[0].llMESpec[0], newTBMEList]
+#            print [len(newMESpec[0]),len(newMESpec[1])]
             for nuc in self.mloNuclei:
-                nuc.llMESpec = newMESpec
+                nuc.llMESpec[1] = newTBMEList
         target = self.EExp - (npaETh - np.dot(a, npaME))
         npaWeights = np.zeros([self.EExp.size, self.EExp.size])
         npaErrors = np.ones(*(self.npaErrors.shape))*.1 + self.npaErrors
@@ -1700,7 +1781,7 @@ import sys
 sys.path.append('c:\\PythonScripts\\OxBashScripts\\')
 sys.path.append('C:\PythonScripts\generalmath')
 
-x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput.in',
+x = BashOpt('c:\\PythonScripts\\oxbash\\OptInput.in',
             'c:\\PythonScripts\\OxBashWork\\test',
             'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=True)
 print x.IterativeLSq(sMethod='TBTD', bMix=False, nMaxIter=10, fTolin=10**-2)

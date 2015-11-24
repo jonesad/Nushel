@@ -34,7 +34,7 @@ class nucleus(OxbashOptFl.MEhandler):
     self.bExtrap = bExtrap
     temp = self.nAZ[0]-2*self.nAZ[1]
     if temp % 2 == 0:
-        self.sIsospin = str(int(temp/2))
+        self.sIsospin = str(abs(int(temp/2)))
     else:
         self.sIsospin = str(temp) + '/2'
     self.nVal = nVal
@@ -636,9 +636,8 @@ class nucleus(OxbashOptFl.MEhandler):
                   break
               elif bComp2:
                   for En in line:
-                      if En > 0:
-                          nJ += 1
-                          llfEn.append([nJ, float(En)])
+                      nJ += 1
+                      llfEn.append([nJ, float(En)])
               else:
                   continue
           fIn.close()
@@ -694,6 +693,7 @@ class nucleus(OxbashOptFl.MEhandler):
     temp = sIsospin.split('/')
     if len(temp) > 0 and int(temp[0]) % 2 == 0:
         sIsospin = str(int(eval(sIsospin)))
+    print sIsospin, self.nAZ
     sName += dCode[sIsospin]
     dParity = dict({'+1': '0', '-1': '1'})
     sName += dParity[sParity]
