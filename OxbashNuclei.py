@@ -149,7 +149,7 @@ class nucleus(OxbashOptFl.MEhandler):
     for line in fTh:
       line=line.strip().split()
       if not bAll:
-        for lev in self.mllspec:
+        for numLev, lev in enumerate(self.mllspec):
           if len(line)==7 and lev[0]==line[4] and lev[1]==line[1] and lev[2]==line[6]:
             if self.useGS==0:
               afETh.append(float(line[3]))
@@ -164,7 +164,7 @@ class nucleus(OxbashOptFl.MEhandler):
 #    change level spec to all levels and then get all levels on the list   
     if bAll==True:
       self.mllspec=list(lsNewList)
-      afETh=self.getEnNu(bAll=False)
+      afETh = self.getEnNu(bAll=False)
             
     if len(afETh)!=len(self.mllspec)and bAll==False:
       print "Error: # of Theory levels found does not match requested # in nAZ=", self.nAZ
@@ -175,10 +175,16 @@ class nucleus(OxbashOptFl.MEhandler):
       import numpy as np
       newEth = []
       for lev in self.mllspec:
-        for nIdx, key in enumerate(sortKey):
-            if np.all(lev == key):
-                newEth.append(afETh[nIdx])
-                break
+        if len(sortKey) > 0:
+            for nIdx, key in enumerate(sortKey):
+                if np.all(lev == key):
+                    newEth.append(afETh[nIdx])
+                    break
+                if nIdx == len(sortKey) - 1:
+                    newEth.append('N/A')
+        else:
+            for nIdx in range(len(self.mllspec)):
+                newEth.append('N/A')
       afETh = newEth
     return afETh 
 
@@ -307,8 +313,8 @@ class nucleus(OxbashOptFl.MEhandler):
             temp = line[5:5 + self.countOBME()]
             temp=[temp]
             sortKey.append(lev)
-            if npaOcc!=[]:              
-              npaOcc=np.append(npaOcc, temp, axis=0)              
+            if npaOcc!=[]:
+              npaOcc=np.append(npaOcc, temp, axis=0)
             else:
               npaOcc=temp
       fIn.close()
@@ -317,15 +323,17 @@ class nucleus(OxbashOptFl.MEhandler):
           for nIdx, key in enumerate(sortKey):
               if np.all(key == lev):
                   newOcc.append(npaOcc[nIdx])
-#      print 'spec'
-#      print self.mllspec
-#      print 'npaOcc'
-#      print npaOcc
-#      print 'key'
-#      print sortKey
-#      print 'newOcc'
-#      print newOcc
-#      raw_input('enter')
+                  break
+#      if np.all(self.nAZ == [20, 8]):
+#          print 'spec'
+#          print self.mllspec
+#          print 'npaOcc'
+#          print npaOcc
+#          print 'key'
+#          print sortKey
+#          print 'newOcc'
+#          print newOcc
+#          raw_input('enter')
       return np.array(newOcc, dtype=float)
 #From the occupations listed return only the ones associated with SPE on the 
 #llMESpec[0] list     

@@ -226,7 +226,7 @@ def CreateInFile(sInfilePath):
     fInFile.write('  0  1  +1   0.00000   0.00000\n')
 
 # code to create an input file
-CreateInFile('C:/PythonScripts/OxBashScripts/OptInput.in')
+#CreateInFilele('C:/PythonScripts/OxBashScripts/OptInput.in')
 
 
 class BashOpt:
@@ -278,7 +278,7 @@ class BashOpt:
             if initialize:
                 self.obj(self.mloNuclei[0].getME())
             self.init = True
-            self.EExp.shape = [self.EExp.size, 1]
+#            self.EExp.shape = [self.EExp.size, 1]
 
 # Write the initial state of the fit
     def writeLevs(self, path):
@@ -299,9 +299,14 @@ class BashOpt:
         sHFormat = '{:10}{:5}{:5}{:5}{:>10}{:>10}\n'
         fOut.write(sHFormat.format('[A,Z]', 'J', 'nJ', 'P', 'Eexp', 'Einit'))
         sFormat = '{:10}{:5}{:5}{:5}{:10.4f}{:10.4f}'
+        sAltForm = '{:10}{:5}{:5}{:5}{:10.4f}{:>10}'
 # print lAZ, lLS, npaEExp.shape, npaETh.shape
         for AZ, LS, Exp, Th in zip(lAZ, lLS, self.EExp, npaETh):
-            fOut.write(sFormat.format(AZ, LS[0], LS[1], LS[2], Exp, Th) + '\n')
+            if isinstance(npaETh, float):
+                fOut.write(sFormat.format(AZ, LS[0], LS[1], LS[2], Exp, Th) + '\n')
+            else:
+                fOut.write(sAltForm.format(AZ, LS[0], LS[1], LS[2], Exp, Th) + '\n')
+
         fOut.close()
 
 # Update the levels with their final values
@@ -331,6 +336,7 @@ class BashOpt:
         sFormat1 = '{:5}{:5}{:5}{:5}{:5}{:>10}{:>10}'
         sFormat2 = '{:>10}'
         sFormatNew = '{:>10.4f}{:>10.4f}'
+        sFormatAlt = '{:>10}{:>10}'
         nIdx = 0
         for line in fIn:
             if nIdx > -1:
@@ -339,8 +345,12 @@ class BashOpt:
                                            temp[4], temp[5], temp[6])
                 for nJIdx in range(len(temp)-7):
                     sNewLine += sFormat2.format(temp[nJIdx + 7])
-                sNewLine += sFormatNew.format(npaETh[nIdx], npaETh[nIdx] -
-                                              float(temp[5]))
+                try:
+                    sNewLine += sFormatNew.format(float(npaETh[nIdx]),
+                                                  float(npaETh[nIdx]) -
+                                                  float(temp[5]))
+                except:
+                    sNewLine += sFormatAlt.format(npaETh[nIdx], 'N/A')
                 fOut.write(sNewLine + '\n')
             nIdx += 1
         fIn.close()
@@ -595,7 +605,7 @@ class BashOpt:
             fIn.close()
 
 
-#   reads BAB's SD shell fitting information 
+#   reads BAB's SD shell fitting information
     def readDAI(self, sDAIpath, initialize):
         import numpy as np
         import OxbashNuclei
@@ -616,15 +626,20 @@ class BashOpt:
         for line in fDAI:
             line = line.strip().split()
             lnCurentAI = [int(line[0]), int(line[1])]
-            print np.all(lnLastAI != lnCurentAI)
-            if np.all(lnLastAI != lnCurentAI):
+            print not np.all(lnLastAI == lnCurentAI)
+            print lnLastAI, '?=', lnCurentAI
+            if not np.all(lnLastAI == lnCurentAI):
                 mnNuclei += 1
 # if this is not the first nucleus write the one you just read in
-                print lnLastAI != []
                 if lnLastAI != []:
-                    fMin = np.amin(npa2JnJ[:, 0])/2.
-                    fMax = np.amax(npa2JnJ[:, 0])/2.
-                    fDeltaJ = GCDofList(np.diff(npa2JnJ[:, 0]))/2.
+                    if npa2JnJ.shape[0] > 1:
+                        fMin = np.amin(npa2JnJ[:, 0])/2.
+                        fMax = np.amax(npa2JnJ[:, 0])/2.
+                        fDeltaJ = GCDofList(np.diff(npa2JnJ[:, 0]))/2.
+                    else:
+                        fMin = npa2JnJ[0, 0]/2.
+                        fMax = fMin
+                        fDeltaJ = 0.0
                     sMMDR = sMMDRform.format(fMin, fMax, fDeltaJ)
                     llStateSpec = []
                     sdefpar = '+1'
@@ -634,7 +649,7 @@ class BashOpt:
                             j = str(j)+'/2'
                         else:
                             j = str(j/2)
-                        nj= str(npa2JnJ[nIdx, 0])
+                        nj= str(npa2JnJ[nIdx, 1])
                         llStateSpec.append([j, nj, sdefpar])
                     tempnuc = OxbashNuclei.nucleus(nZ, nA, nVal, fGSE, fError,
                                                    self.sOutPath, sMMDR, sPar,
@@ -642,24 +657,56 @@ class BashOpt:
                                                    self.useGS, self.sForm,
                                                    initialize, self.bExtrap,
                                                    llStateSpec)
+                    print 'in loop ++++++++++++++++++++++++++++++++++++++', mnNuclei -1
                     tempnuc.setmanBody(anBody)
                     self.mloNuclei.append(tempnuc)
 # get as much info as you can about the new nucleus from first line
                 nA = int(line[0])
                 nVal= nA - 16
-                fGSE = 0.0 # GSE is included in the numbers so just set to zero
-                fError = 0.0 # see above
+                fGSE = float(line[4]) # GSE is first energy given for a nucleus
+                fError = float(line[5]) # see above
                 sPar = '0'
-                nZ = nVal - int(line[1]) + 8
+                nZ = (nVal - int(line[1]))/2 + 8
                 npa2JnJ = np.array([int(line[2]), int(line[3])])
                 npa2JnJ.shape = [1, 2]
+                self.EExp.append(0.0) # first energy is the ground state
+                self.npaErrors.append(0.0)
             else:
                 temp = np.array([int(line[2]), int(line[3])])
                 temp.shape = [1, 2]
                 npa2JnJ = np.append(npa2JnJ, temp, 0)
-            self.EExp.append(line[4])
-            self.npaErrors.append(line[5])
-            lnLastAI = [num for num in lnCurentAI]
+                self.EExp.append(float(line[4])) # if it is not the first line for this nucleus this is the excitation
+                self.npaErrors.append(float(line[5]))
+            lnLastAI = [elem for elem in  lnCurentAI]
+# do everything again to get the last nucleus
+        if npa2JnJ.shape[0] > 1:
+            fMin = np.amin(npa2JnJ[:, 0])/2.
+            fMax = np.amax(npa2JnJ[:, 0])/2.
+            fDeltaJ = GCDofList(np.diff(npa2JnJ[:, 0]))/2.
+        else:
+            fMin = npa2JnJ[0, 0]/2.
+            fMax = fMin
+            fDeltaJ = 0.0
+        sMMDR = sMMDRform.format(fMin, fMax, fDeltaJ)
+        llStateSpec = []
+        sdefpar = '+1'
+        for nIdx in range(npa2JnJ.shape[0]):
+            j = int(npa2JnJ[nIdx, 0])
+            if j % 2 != 0:
+                j = str(j)+'/2'
+            else:
+                j = str(j/2)
+            nj = str(npa2JnJ[nIdx, 1])
+            llStateSpec.append([j, nj, sdefpar])
+        tempnuc = OxbashNuclei.nucleus(nZ, nA, nVal, fGSE, fError,
+                                       self.sOutPath, sMMDR, sPar,
+                                       self.lsShared, llMESpec,
+                                       self.useGS, self.sForm,
+                                       initialize, self.bExtrap,
+                                       llStateSpec)
+        tempnuc.setmanBody(anBody)
+        print 'last Nuc++++++++++++++++++++++', mnNuclei
+        self.mloNuclei.append(tempnuc)
         self.mnNuclei = mnNuclei
         fDAI.close()
 
@@ -668,6 +715,8 @@ class BashOpt:
     def obj(self, npaME):
         import numpy as np
         res = []
+        numFound = 0
+        numDesired = 0
         for oNuc in self.mloNuclei:
             '''
                 write ME to file
@@ -690,12 +739,37 @@ class BashOpt:
                     os.rename(temp, temp + '_')
 # run Shell model calc
             oNuc.runSM()
-# get the energy difference for the releveant levels
-            res.extend(oNuc.getEnNu())
-        res = np.array(res)
-        res.shape = [res.size, 1]
-        self.EExp.shape = [self.EExp.size, 1]
-        res = self.EExp - res
+# get the energy difference for the relevant levels
+            tempEth = oNuc.getEnNu()
+            numFound += len(tempEth)
+            numDesired += len(oNuc.mllspec)
+            if len(tempEth) - len(oNuc.mllspec) != 0:
+                print oNuc.nAZ
+                print 'Looked for', len(oNuc.mllspec), 'levels. Foumd', len(tempEth)
+                print 'Discrepency is:', numFound - numDesired
+                raw_input('Press Enter...')
+            res.extend(tempEth)
+        lnRmList = []
+        print numDesired, numFound
+        print len(res)
+        print len(self.EExp)
+        for nIdx, elem in enumerate(res):
+            if isinstance(elem, str):
+                lnRmList.append(nIdx)
+        import MatManip
+        if isinstance(self.EExp, type(np.zeros([1]))):
+            newEExp = MatManip.rmSlice(lnRmList, self.EExp, 0)
+        elif isinstance(self.EExp, list):
+            newEExp = [elem for i, elem in enumerate(self.EExp) if i not in lnRmList]
+            newEExp = np.array(newEExp)
+        if isinstance(res, type(np.zeros([1]))):
+            newRes = MatManip.rmSlice(lnRmList, res, 0)
+        elif isinstance(res, list):
+            newRes = [elem for i, elem in enumerate(res) if i not in lnRmList]
+            newRes = np.array(newRes)
+        newRes.shape = [newRes.size, 1]
+        newEExp.shape = [newEExp.size, 1]
+        res = newEExp - newRes
         temp = np.sqrt(np.dot(np.transpose(res), res) / float(len(res)))
         temp.shape = [temp.size]
         temp = float(temp[0])
@@ -923,11 +997,19 @@ class BashOpt:
             else:
                 npaETh = tempth
         npaETh = np.array(npaETh)
-        npaETh.shape = [npaETh.size,1]
+        npaETh.shape = [npaETh.size, 1]
         npaOcc = []
+        nSought = 0
+        nFound = 0
         for nucleus in self.mloNuclei:
             sLevName = nucleus.getLevName()
             npaTempOcc = nucleus.getOcc(sLevName)
+            nTemp = len(nucleus.mllspec)
+            nSought += nTemp
+            nFound += npaTempOcc.shape[0]
+            if nTemp != npaTempOcc.shape[0]:
+                print 'Discrepency in sought and found Occupations in', nucleus.nAZ 
+                print 'Sought:', nTemp, 'Found:', npaTempOcc.shape[0] 
             if np.all(npaOcc != []):
                 npaOcc = np.append(npaOcc, npaTempOcc, axis=0)
             else:
@@ -935,6 +1017,8 @@ class BashOpt:
         npaME = self.mloNuclei[0].getOBME(bAll=True)
         npaME = np.append(npaME, self.mloNuclei[0].getTBME())
         npaME.shape = [npaME.size, 1]
+        print nSought, nFound
+        print npaOcc.shape, npaTBTD.shape
         a = np.append(npaOcc, npaTBTD, axis=1)
         nlRMList = MatManip.getZeroCols(a)
         newTBMEList = []        
@@ -989,9 +1073,21 @@ class BashOpt:
 #            print [len(newMESpec[0]),len(newMESpec[1])]
             for nuc in self.mloNuclei:
                 nuc.llMESpec[1] = newTBMEList
-        target = self.EExp - (npaETh - np.dot(a, npaME))
-        npaWeights = np.zeros([self.EExp.size, self.EExp.size])
-        npaErrors = np.ones(*(self.npaErrors.shape))*.1 + self.npaErrors
+        lnThRm = []
+        for i, elem in enumerate(npaETh):
+            if elem == 'N/A':
+                lnThRm.append(i)
+        npaNewETh = np.array([E for i, E in enumerate(npaETh) if i not in lnThRm], dtype = float)
+        npaNewETh.shape = [npaNewETh.size, 1]
+        npaNewEExp = np.array([E for i, E in enumerate(self.EExp) if i not in lnThRm], dtype = float)
+        npaNewEExp.shape = [npaNewEExp.size, 1]
+        npaNewErr = np.array([E for i, E in enumerate(self.npaErrors) if i not in lnThRm], dtype = float)
+#        npaNewErr.shape = [npaNewErr.size, 1]
+        a = MatManip.rmSlice(lnThRm, a, 0)
+        print npaNewEExp.shape, npaNewETh.shape, (np.dot(a,npaME)).shape
+        target = npaNewEExp - (npaNewETh - np.dot(a, npaME))
+        npaWeights = np.zeros([npaNewEExp.size, npaNewEExp.size])
+        npaErrors = np.ones(*(npaNewErr.shape))*.1 + npaNewErr
         for nIdx, elem in enumerate(npaErrors):
             npaWeights[nIdx, nIdx] = 1.0 / (elem**2)
         aprime = np.dot(npaWeights, a)
@@ -1781,11 +1877,11 @@ import sys
 sys.path.append('c:\\PythonScripts\\OxBashScripts\\')
 sys.path.append('C:\PythonScripts\generalmath')
 
-x = BashOpt('c:\\PythonScripts\\oxbash\\OptInput.in',
+x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput.in',
             'c:\\PythonScripts\\OxBashWork\\test',
             'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=True)
-print x.IterativeLSq(sMethod='TBTD', bMix=False, nMaxIter=10, fTolin=10**-2)
-#print x.IterativeLSq(sMethod='single', bMix=False, nMaxIter=10, fTolin=10**-2)
+#print x.IterativeLSq(sMethod='TBTD', bMix=False, nMaxIter=10, fTolin=10**-2)
+print x.IterativeLSq(sMethod='single', bMix=False, nMaxIter=10, fTolin=10**-2)
 
 #ans, a, target, npaME = x.TBTDLeastSq()
 
