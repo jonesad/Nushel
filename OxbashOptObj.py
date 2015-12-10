@@ -226,7 +226,7 @@ def CreateInFile(sInfilePath):
     fInFile.write('  0  1  +1   0.00000   0.00000\n')
 
 # code to create an input file
-#CreateInFilele('C:/PythonScripts/OxBashScripts/OptInput.in')
+CreateInFile('C:/PythonScripts/OxBashScripts/OptInput.in')
 
 
 class BashOpt:
@@ -1092,7 +1092,7 @@ class BashOpt:
             npaWeights[nIdx, nIdx] = 1.0 / (elem**2)
         aprime = np.dot(npaWeights, a)
         bprime = np.dot(npaWeights, target)
-        ans = self.linCom(aprime, npaME, bprime)
+        ans = self.linCom(aprime, npaME, bprime, nLincoms=30)
 #        svd
 #        [u, s, vt] = np.linalg.svd(aprime)
 #        Sd = np.zeros((vt.shape[0], u.shape[1]))
@@ -1116,13 +1116,22 @@ class BashOpt:
 
 # lst square solution to matrix a, with initial guess xbg, target b, and an 
 # epsilon threshold for determining well determined lincoms
-    def linCom(self, a, xbg, b, epsilon=0):
+    def linCom(self, a, xbg, b, epsilon=-0.1, nLincoms = 0):
         import numpy as np
         [u, s, vt] = np.linalg.svd(a)
 #        use default value if no valid epsilon is given 
-        if epsilon <= 0:
-            print 'object: oxbashopt. method: linCom; using default epsilon.'
-            epsilon = np.amax(s)*0.01
+        if epsilon <= 0 and (nLincoms <= 0 or nLincoms > s.size):
+            print 'Object: oxbashopt. method: linCom.'
+            print 'Using default number of linear combinations.'
+            try:
+                nKeep = int(.4*float(a.shape[0]))
+                epsilon = s[nKeep + 1]
+                print '40% of number of data points: keep', nKeep, 'variables'
+            except:
+                epsilon = s[-1]
+            print 'cutoff is ', epsilon
+        else:
+            epsilon = s[nLincoms + 1]
         if a.shape[1] > a.shape[0]:
             print 'Warning: System of equations is underdetermined.'
             print a.shape[0], 'equations', a.shape[1], 'unknown quantities.'
@@ -1140,10 +1149,26 @@ class BashOpt:
                 y.append(ys[i])
                 numbelow += 1
         print numbelow, 'lincoms of ', s.size, 'are not well determined.'
+        self.lincomreport(a.shape[0], s.size, numbelow, epsilon)
         y = np.array(y)
         y.shape = [vt.shape[0], 1]
         return np.dot(np.transpose(vt), y)
 
+# write to file the number of linear combinations used and the cutoff that determines it
+    def lincomreport(self, numdat, numvar, numignore, eps):
+        import os
+        sPath = self.sOutPath + '\\tracking\\lincom.dat'
+        if not os.path.isfile(sPath):
+            sFormHead = '{:>10}'*4+'\n'
+            fOut = open(self.sOutPath + '\\tracking\\lincom.dat', 'w')
+            fOut.write(sFormHead.format('Data', 'Variables', 'Ignored',
+                                        'Cutoff'))
+        else:
+            fOut = open(self.sOutPath + '\\tracking\\lincom.dat', 'a+')
+        sForm = '{:>10d}{:>10d}{:>10d}{:>10.4f}\n'
+        fOut.write(sForm.format(numdat, numvar, numignore, eps))
+        fOut.close()
+        
 # quickly set manbody variable
     def initmanbody(self):
         for nucleus in self.mloNuclei:
@@ -1877,11 +1902,10 @@ import sys
 sys.path.append('c:\\PythonScripts\\OxBashScripts\\')
 sys.path.append('C:\PythonScripts\generalmath')
 
-x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput.in',
+x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput-dai.in',
             'c:\\PythonScripts\\OxBashWork\\test',
             'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=True)
-#print x.IterativeLSq(sMethod='TBTD', bMix=False, nMaxIter=10, fTolin=10**-2)
-print x.IterativeLSq(sMethod='single', bMix=False, nMaxIter=10, fTolin=10**-2)
+print x.IterativeLSq(sMethod='TBTD', bMix=False, nMaxIter=10, fTolin=10**-2)
+#print x.IterativeLSq(sMethod='single', bMix=False, nMaxIter=10, fTolin=10**-2)
 
 #ans, a, target, npaME = x.TBTDLeastSq()
-
