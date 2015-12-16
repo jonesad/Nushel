@@ -27,8 +27,8 @@ def CreateInFile(sInfilePath):
     fInFile.write('sd\n')
 # restriction
     fInFile.write('n\n')
-# interaction
-    fInFile.write('sdba\n')
+# interaction if two interactions present second is the background interaction
+    fInFile.write('usda    sdba\n')
 # formalism iso/pn
     fInFile.write('iso\n')
 # does the interaction extrapolate matrix elements based on mass dependence
@@ -232,7 +232,7 @@ CreateInFile('C:/PythonScripts/OxBashScripts/OptInput.in')
 class BashOpt:
     'Class for shell model hamiltonian optimization problems'
     def __init__(self, sInPath, sOutPath, sErrorPath='', initialize=True,
-                 fThError=0.07885, sOBDir='c:\\oxbash'):
+                 fThError=0.10, sOBDir='c:\\oxbash'):
         self.nDOF = 1
         self.sOBDir = sOBDir
         self.fLastChi = 0
@@ -585,8 +585,8 @@ class BashOpt:
                         line = fIn.readline().strip('\n')
                         line = line.split()
                         llStateSpec.append(line[:3])
-                        self.EExp.append(line[3])
-                        self.npaErrors.append(line[4])
+                        self.EExp.append(float(line[3]))
+                        self.npaErrors.append(float(line[4]))
                         tempnuc = OxbashNuclei.nucleus(nZ, nA, nVal, fGSE,
                                                        fError, self.sOutPath,
                                                        sMMDR, sPar,
@@ -626,8 +626,6 @@ class BashOpt:
         for line in fDAI:
             line = line.strip().split()
             lnCurentAI = [int(line[0]), int(line[1])]
-            print not np.all(lnLastAI == lnCurentAI)
-            print lnLastAI, '?=', lnCurentAI
             if not np.all(lnLastAI == lnCurentAI):
                 mnNuclei += 1
 # if this is not the first nucleus write the one you just read in
@@ -657,7 +655,6 @@ class BashOpt:
                                                    self.useGS, self.sForm,
                                                    initialize, self.bExtrap,
                                                    llStateSpec)
-                    print 'in loop ++++++++++++++++++++++++++++++++++++++', mnNuclei -1
                     tempnuc.setmanBody(anBody)
                     self.mloNuclei.append(tempnuc)
 # get as much info as you can about the new nucleus from first line
@@ -705,7 +702,6 @@ class BashOpt:
                                        initialize, self.bExtrap,
                                        llStateSpec)
         tempnuc.setmanBody(anBody)
-        print 'last Nuc++++++++++++++++++++++', mnNuclei
         self.mloNuclei.append(tempnuc)
         self.mnNuclei = mnNuclei
         fDAI.close()
@@ -749,44 +745,48 @@ class BashOpt:
                 print 'Discrepency is:', numFound - numDesired
                 raw_input('Press Enter...')
             res.extend(tempEth)
-        lnRmList = []
-        print numDesired, numFound
-        print len(res)
-        print len(self.EExp)
-        for nIdx, elem in enumerate(res):
-            if isinstance(elem, str):
-                lnRmList.append(nIdx)
-        import MatManip
-        if isinstance(self.EExp, type(np.zeros([1]))):
-            newEExp = MatManip.rmSlice(lnRmList, self.EExp, 0)
-        elif isinstance(self.EExp, list):
-            newEExp = [elem for i, elem in enumerate(self.EExp) if i not in lnRmList]
-            newEExp = np.array(newEExp)
-        if isinstance(res, type(np.zeros([1]))):
-            newRes = MatManip.rmSlice(lnRmList, res, 0)
-        elif isinstance(res, list):
-            newRes = [elem for i, elem in enumerate(res) if i not in lnRmList]
-            newRes = np.array(newRes)
-        newRes.shape = [newRes.size, 1]
-        newEExp.shape = [newEExp.size, 1]
-        res = newEExp - newRes
-        temp = np.sqrt(np.dot(np.transpose(res), res) / float(len(res)))
-        temp.shape = [temp.size]
-        temp = float(temp[0])
-
-        fChiSq = []
-        for num, err in zip(res, self.npaErrors):
-            fChiSq.append(num / np.sqrt(err**2 + self.fThError**2))
-        fChiSq = np.array(fChiSq)
-        fChiSq.shape = [fChiSq.size, 1]
-        fChiSq = (np.sqrt(np.dot(np.transpose(fChiSq), fChiSq)) /
-                  float(self.nDOF))
-        fChiSq = float(fChiSq[0, 0])
-
+        npaETh = [e for e in res]
+        fChiSq, fRes = self.calcChiDOF(npaETh, bWeight=False)
         if self.track == 1:
-            self.OptStatus(temp, fChiSq, npaME)
+            self.OptStatus(fRes, fChiSq, npaME)
         self.fLastChi = fChiSq
-        return temp
+        return fRes
+
+#   calculate the chi square statistic divided by the number DOF for the fit if
+#   bWeight is true return a vector of fitting weights (along with energies)
+#   instead
+    def calcChiDOF(self, npaETh, bWeight=False):
+        import numpy as np
+        lnThRm = []
+        for i, elem in enumerate(npaETh):
+            if elem == 'N/A':
+                lnThRm.append(i)
+        npaNewETh = np.array([E for i, E in enumerate(npaETh) if i not in lnThRm], dtype = float)
+        npaNewETh.shape = [npaNewETh.size, 1]
+        npaNewEExp = np.array([E for i, E in enumerate(self.EExp) if i not in lnThRm], dtype = float)
+        npaNewEExp.shape = [npaNewEExp.size, 1]
+        lfGSError = []
+        for nucleus in self.mloNuclei:
+            for num in range(len(nucleus.mllspec)):
+                lfGSError.append(nucleus.fError**2)
+        npaGSError = np.array([E for i, E in enumerate(lfGSError) if i not in lnThRm], dtype = float)
+        npaNewErr = np.array([E**2 for i, E in enumerate(self.npaErrors) if i not in lnThRm], dtype = float)
+        npaNewErr = npaNewErr + npaGSError # add ground state error to the level error 
+        npaErrors = np.ones(*(npaNewErr.shape))*self.fThError**2 + npaNewErr # add the arbitrary theory error to the previous error contributions
+        npaWeights = np.zeros(npaErrors.shape)
+        for nIdx, elem in enumerate(npaErrors):
+            npaWeights[nIdx] = 1.0 / (elem)
+        npaWeights.shape = [npaWeights.size, 1]
+        if bWeight:
+            npaWeights.shape = [npaWeights.size]
+            return npaWeights, npaNewETh, npaNewEExp
+        else:
+            npaRes = npaNewETh - npaNewEExp
+            fChi = np.dot(np.transpose(np.power(npaRes, 2)), npaWeights)
+            fChi = float(fChi[0])
+            temp = np.dot(np.transpose(npaRes), npaRes)
+            temp = np.sqrt(np.sum(temp)/npaRes.size)
+            return fChi / float(self.nDOF), temp
 
     def OptStatus(self, res, fChiSq, npaME):
         sFormat = '{:14.10f}'
@@ -1017,11 +1017,11 @@ class BashOpt:
         npaME = self.mloNuclei[0].getOBME(bAll=True)
         npaME = np.append(npaME, self.mloNuclei[0].getTBME())
         npaME.shape = [npaME.size, 1]
-        print nSought, nFound
-        print npaOcc.shape, npaTBTD.shape
         a = np.append(npaOcc, npaTBTD, axis=1)
         nlRMList = MatManip.getZeroCols(a)
         newTBMEList = []        
+        print a.shape, npaME.shape
+        print self.mloNuclei[0].getOBME(bAll=True).shape, len(self.mloNuclei[0].getTBME())
         if nlRMList != []:
             lnTBMERmList = [elem for elem in nlRMList if elem > 2]
             a= MatManip.rmSlice(lnTBMERmList, a, 1)
@@ -1029,7 +1029,6 @@ class BashOpt:
             lnTBMERmList = np.subtract(lnTBMERmList,3)
             newTBMEList = MatManip.rmSlice(lnTBMERmList,
                                            self.mloNuclei[0].llMESpec[1], 0)
-        newOBMEList =[]
 #       check if llsq problem is valid
         if a.shape[0] < a.shape[1]:
             print 'Warning sysetem underdeterimined with:'
@@ -1040,78 +1039,22 @@ class BashOpt:
             a = MatManip.rmSlice(nlRmList, a, 1)
             npaME = MatManip.rmSlice(nlRmList, npaME, 0)
             newTBMEList = MatManip.rmSlice(np.subtract(nlRmList, self.mloNuclei[0].nOBME), newTBMEList, 0)
-#            nlTest = [i + nRem for i in range(a.shape[1] - nRem)]
-#            lfSize = []
-#            for nColIdx in range(a.shape[1]):
-#                lfSize.append(np.linalg.norm(a[:, nColIdx]))
-#            for nSizeIdx in nlTest:
-#                for nIdx, nRmIdx in enumerate(nlRmList):
-#                    if lfSize[nSizeIdx] < lfSize[nRmIdx]:
-#                        nlRmList[nIdx] = nSizeIdx
-#                        break
-#            lnOBMERM = []
-#            lnTBMERM = []            
-#            for elem in nlRmList:
-#                if elem > self.mloNuclei[0].nOBME:
-#                    lnTBMERM.append(elem - self.mloNuclei[0].nOBME)
-#                elif elem < self.mloNuclei[0].nOBME:
-#                    lnOBMERM.append(elem)
-#            if nlRmList != []:
-#                a = MatManip.rmSlice(nlRmList, a, 1)
-#                npaME = MatManip.rmSlice(nlRmList, npaME, 0)
-#                if lnOBMERM != []:
-#                    newOBMEList = MatManip.rmSlice(lnOBMERM,
-#                                                   self.mloNuclei[0].llMESpec[0],
-#                                                   0)
-#                if lnTBMERM != []:
-#                    newTBMEList = MatManip.rmSlice(lnTBMERM, newTBMEList, 0)
-#        if newTBMEList != []:
-#            if newOBMEList!= []:
-#                newMESpec = [newOBMEList, newTBMEList]
-#            else:
-#                newMESpec= [self.mloNuclei[0].llMESpec[0], newTBMEList]
-#            print [len(newMESpec[0]),len(newMESpec[1])]
             for nuc in self.mloNuclei:
                 nuc.llMESpec[1] = newTBMEList
+        npaWeights, npaNewETh, npaNewEExp = self.calcChiDOF(npaETh, bWeight=True)
+        npaWeights = np.diag(npaWeights)
         lnThRm = []
         for i, elem in enumerate(npaETh):
             if elem == 'N/A':
                 lnThRm.append(i)
-        npaNewETh = np.array([E for i, E in enumerate(npaETh) if i not in lnThRm], dtype = float)
-        npaNewETh.shape = [npaNewETh.size, 1]
-        npaNewEExp = np.array([E for i, E in enumerate(self.EExp) if i not in lnThRm], dtype = float)
-        npaNewEExp.shape = [npaNewEExp.size, 1]
-        npaNewErr = np.array([E for i, E in enumerate(self.npaErrors) if i not in lnThRm], dtype = float)
-#        npaNewErr.shape = [npaNewErr.size, 1]
         a = MatManip.rmSlice(lnThRm, a, 0)
-        print npaNewEExp.shape, npaNewETh.shape, (np.dot(a,npaME)).shape
         target = npaNewEExp - (npaNewETh - np.dot(a, npaME))
-        npaWeights = np.zeros([npaNewEExp.size, npaNewEExp.size])
-        npaErrors = np.ones(*(npaNewErr.shape))*.1 + npaNewErr
-        for nIdx, elem in enumerate(npaErrors):
-            npaWeights[nIdx, nIdx] = 1.0 / (elem**2)
         aprime = np.dot(npaWeights, a)
         bprime = np.dot(npaWeights, target)
-        ans = self.linCom(aprime, npaME, bprime, nLincoms=30)
-#        svd
-#        [u, s, vt] = np.linalg.svd(aprime)
-#        Sd = np.zeros((vt.shape[0], u.shape[1]))
-#        fCutOff = 10.0**(-5)*float(np.amax(a.shape))*s[0]
-#        print s
-#        print fCutOff
-#        raw_input('Eneter')
-#        for i, sv in enumerate(s):
-#            if sv > fCutOff:
-#                Sd[i, i] = 1./sv
-#            else:
-#                break
-#        api = np.dot(np.dot(np.transpose(vt), Sd), np.transpose(u))
-#        ans = np.dot(api, bprime)
-#        weighted least square
-#        ans = np.linalg.lstsq(aprime, bprime)
-#        least square
-#        ans = np.linalg.lstsq(a, target)
-#        ans = ans[0]
+        nLC = 30
+        npaBGME = self.mloNuclei[0].getBGInt()
+        print npaBGME
+        ans = self.linCom(aprime, npaBGME, bprime, nLincoms=nLC)
         return ans, a, target, npaME
 
 # lst square solution to matrix a, with initial guess xbg, target b, and an 

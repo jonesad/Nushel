@@ -113,14 +113,17 @@ class MEhandler:
     fIntSrc.close()
     fIntOut.close()
 #    get the one body matrix elements
-  def getOBME(self,bAll=False):
+  def getOBME(self, sBGIntPath='',bAll=False):
     import numpy as np
     if bAll==True:
       nOBME=self.countOBME()
     else:
       nOBME=len(self.llMESpec[0])              
 #    print nOBME
-    fIntSrc=open(self.makeIntPath(''),'r') 
+    if sBGIntPath == '':
+        fIntSrc = open(self.makeIntPath(''),'r') 
+    else:
+        fIntSrc = open(sBGIntPath, 'r')
     npaME=[]    
     for line in fIntSrc:
       if line[0]!='!':
@@ -197,8 +200,11 @@ class MEhandler:
     os.system('shell '+self.sName+'.ans')
 
 #Get TBME
-  def getTBME(self, bAll=False, nExtrap=0):
-    fIntSrc=open(self.makeIntPath('',nExtrap),'r') 
+  def getTBME(self, sBGIntPath='', bAll=False, nExtrap=0):
+    if sBGIntPath == '':
+        fIntSrc = open(self.makeIntPath('', nExtrap), 'r') 
+    else:
+        fIntSrc = open(sBGIntPath)
     import numpy as np
     size= self.llMESpec[1].shape[0]
     npaME=np.zeros([size,1])
@@ -305,17 +311,7 @@ class MEhandler:
 
 #get the monopole interaction matrix elements
   def getMonoME(self):
-#    fIntSrc=open(self.makeIntPath(''),'r') 
-#    nUnCm=0
     npaMME=[]
-#    
-#    for line in fIntSrc:
-#      if line[0]!='!':
-#        temp=line.strip().split()        
-#        if nUnCm!=0 and temp[0]==temp[2] and temp[1]==temp[3] and int(temp[4])!=0:          
-#          npaMME.append(temp[6])
-#        nUnCm+=1
-#    fIntSrc.close()
     import numpy
     self.llMESpec[1]=self.getMonoLabel()
     self.setMEnum()
@@ -391,21 +387,20 @@ class MEhandler:
       self.writeTBME(npaTBME) 
       
 #return the specified matrix elements of the current hamiltonian.
-  def getME(self, bAll=False):
+  def getME(self, bAll=False, sBGIntPath=''):
     import numpy as np    
     npaME=np.array([])
     temp=[]
     if bAll==False:
       for elem in self.manBody:
         if elem==1:
-          temp=self.getOBME()
+          temp=self.getOBME(sBGIntPath)
         elif elem==2 :
-          temp=self.getTBME()
+          temp=self.getTBME(sBGIntPath)
         npaME=np.append(npaME,temp)
     elif bAll==True:
       npaME=self.getOBME(bAll=bAll)
       npaME=np.append(npaME,self.getTBME(bAll=bAll))
-
     return npaME
     
 #Check the interaction file for repititions of line

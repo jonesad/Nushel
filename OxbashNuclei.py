@@ -40,15 +40,15 @@ class nucleus(OxbashOptFl.MEhandler):
     self.nVal = nVal
     self.sName = 'A' + str(nA) + '_Z' + str(nZ)
     self.sMS = lsShared[0]
-    self.sInt = lsShared[2]
     if not os.path.exists(sPath + '\\' + self.sName):
         os.makedirs(self.sPath + '\\' + self.sName)
     if not os.path.exists(sPath + '\\' + self.sName + '\\tracking'):
         os.makedirs(self.sPath + '\\' + self.sName + '\\tracking')
     self.llMESpec = llMESpec
     self.mllspec = llStateSpec
+    temp = lsShared[2].split()
+    self.sInt = temp[0]
     self.writeAns(sMMDR, sPar, lsShared)
-    self.sInt = lsShared[2]
     self.dRank = dRank
     self.dTBTDtoTBME = dTBTDtoTBME
     self.dTBMEtoJ = dTBMEtoJ
@@ -67,6 +67,27 @@ class nucleus(OxbashOptFl.MEhandler):
     if len(llMESpec[0]) == 0:
         self.llMESpec[0] = range(1, self.countOBME() + 1)
     self.sForm = sForm
+#    if there is a background interaction provided store it
+    if len(temp) == 2:        
+        self.sBGInt = temp[1]
+    elif len(temp) > 2:
+        print 'Error: too many interactions specified in opt input file.'
+
+  def getBGInt(self):
+      import os
+      import numpy as np
+      if os.path.isfile(self.sBGInt):
+          npaBGME = self.getOBME(bAll=True, sBGIntPath=self.sBGInt)
+          temp = self.getTBME(sBGIntPath=self.sBGInt)
+      else:
+          npaBGME = self.getOBME(bAll=True,sBGIntPath=(self.sOBDir +
+                                 '\\sps\\' + self.sBGInt + '.int'))
+          temp = self.getTBME(sBGIntPath=(self.sOBDir + '\\sps\\' +
+                              self.sBGInt + '.int'))
+      npaBGME.shape = [npaBGME.size, 1]
+      temp.shape = [temp.size, 1]
+      npaBGME = np.append(npaBGME, temp, axis=0)
+      return npaBGME
 
 # make a '.ans' file for use with Nushellx
   def writeAns(self, sMMDR, sPar, lsShared):
@@ -755,7 +776,7 @@ class nucleus(OxbashOptFl.MEhandler):
         fDen = open(self.sPath + '\\' + self.sName + '\\' + sDenFileName, 'r')
         tempLab = []
         tempDen = []
-        lfOBME = self.getOBME(True)[0]
+        lfOBME = self.getOBME(bAll=True)[0]
         for line in fDen:
             line = line.strip().split()
             if len(line) >= 6:
