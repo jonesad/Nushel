@@ -59,6 +59,15 @@ class nucleus(OxbashOptFl.MEhandler):
         shutil.copyfile(sOBDir + '\\sps\\' + self.sInt+'.int', sIntDest)
     shutil.copyfile(sOBDir + '\\label.tp', self.sPath + '\\' +
                     self.sName + '\\label.tp')
+    if bExtrap:
+        fInt = open(sIntDest)
+        for line in fInt:
+            line = line.strip().split()
+            if line[0][0] != '!':
+                self.fScale = (float(line[5]) / (float(line[4]) + float(self.nVal)))**float(line[6])
+                break
+    else:
+        self.fScale = 1.0
     self.nOBME = self.countOBME()
     if initialize:
         self.runSM()

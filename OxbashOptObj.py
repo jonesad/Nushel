@@ -32,7 +32,7 @@ def CreateInFile(sInfilePath):
 # formalism iso/pn
     fInFile.write('iso\n')
 # does the interaction extrapolate matrix elements based on mass dependence
-    fInFile.write('False\n')
+    fInFile.write('True\n')
 # number of nuclei used in optimization
     fInFile.write('10\n')
 
@@ -238,7 +238,7 @@ class BashOpt:
         self.fLastChi = 0
 # flag that says to use the groundstate energy in optimization
         self.init = False
-        self.useGS = 1
+        self.useGS = 0
 # flag that tracks the residue and energy levels over the iterations
         self.sMethod = ''
         self.track = 1
@@ -269,15 +269,15 @@ class BashOpt:
             self.dFitInfo = {'type': None, 'tolerance': None,
                              'iterations': None, 'iteration max': None,
                              'duration': None}
-            import os
-            if not os.path.exists(self.sOutPath+'\\'+'tracking'):
-                os.makedirs(self.sOutPath+'\\'+'tracking')
-            if initialize:
-                self.writeLevs(self.sOutPath+'\\'+'tracking\\')
-            self.llLastMESpec = [[], []]
-            if initialize:
-                self.obj(self.mloNuclei[0].getME())
-            self.init = True
+        import os
+        if not os.path.exists(self.sOutPath+'\\'+'tracking'):
+            os.makedirs(self.sOutPath+'\\'+'tracking')
+        if initialize:
+            self.writeLevs(self.sOutPath+'\\'+'tracking\\')
+        self.llLastMESpec = [[], []]
+        if initialize:
+            self.obj(self.mloNuclei[0].getME())
+        self.init = True
 #            self.EExp.shape = [self.EExp.size, 1]
 
 # Write the initial state of the fit
@@ -298,15 +298,16 @@ class BashOpt:
         fOut = open(path + 'Levels.dat', 'w')
         sHFormat = '{:10}{:5}{:5}{:5}{:>10}{:>10}\n'
         fOut.write(sHFormat.format('[A,Z]', 'J', 'nJ', 'P', 'Eexp', 'Einit'))
-        sFormat = '{:10}{:5}{:5}{:5}{:10.4f}{:10.4f}'
-        sAltForm = '{:10}{:5}{:5}{:5}{:10.4f}{:>10}'
+        sFormat = '{:10}{:5}{:5}{:5}{:10.3f}{:10.3f}'
+        sFormatAlt = '{:10}{:5}{:5}{:5}{:10.3f}{:>10}'
 # print lAZ, lLS, npaEExp.shape, npaETh.shape
         for AZ, LS, Exp, Th in zip(lAZ, lLS, self.EExp, npaETh):
-            if isinstance(npaETh, float):
-                fOut.write(sFormat.format(AZ, LS[0], LS[1], LS[2], Exp, Th) + '\n')
-            else:
-                fOut.write(sAltForm.format(AZ, LS[0], LS[1], LS[2], Exp, Th) + '\n')
-
+            try:
+                fOut.write(sFormat.format(AZ, LS[0], LS[1], LS[2], float(Exp),
+                                          float(Th)) + '\n')
+            except:
+                fOut.write(sFormatAlt.format(AZ, LS[0], LS[1], LS[2],
+                                             float(Exp), Th) + '\n')
         fOut.close()
 
 # Update the levels with their final values
@@ -335,7 +336,7 @@ class BashOpt:
         fOut.write(sHFormat.format(*temp))
         sFormat1 = '{:5}{:5}{:5}{:5}{:5}{:>10}{:>10}'
         sFormat2 = '{:>10}'
-        sFormatNew = '{:>10.4f}{:>10.4f}'
+        sFormatNew = '{:>10.3f}{:>10.3f}'
         sFormatAlt = '{:>10}{:>10}'
         nIdx = 0
         for line in fIn:
@@ -600,7 +601,7 @@ class BashOpt:
                 import numpy as np
                 self.npaErrors = np.array(self.npaErrors, dtype=float)
                 self.EExp = np.array(self.EExp, dtype=float)
-            except:
+            except ValueError:
                 self.readDAI(testline, initialize)
             fIn.close()
 
@@ -666,8 +667,12 @@ class BashOpt:
                 nZ = (nVal - int(line[1]))/2 + 8
                 npa2JnJ = np.array([int(line[2]), int(line[3])])
                 npa2JnJ.shape = [1, 2]
-                self.EExp.append(0.0) # first energy is the ground state
-                self.npaErrors.append(0.0)
+                if self.useGS == 1:
+                    self.EExp.append(0.0) # first energy is the ground state
+                    self.npaErrors.append(0.0)
+                else:
+                    self.EExp.append(fGSE) # first energy is the ground state
+                    self.npaErrors.append(fError)                    
             else:
                 temp = np.array([int(line[2]), int(line[3])])
                 temp.shape = [1, 2]
@@ -754,7 +759,7 @@ class BashOpt:
 
 #   calculate the chi square statistic divided by the number DOF for the fit if
 #   bWeight is true return a vector of fitting weights (along with energies)
-#   instead
+#   instead. Make sure the variable self.nDOF is sef correctly before calling.
     def calcChiDOF(self, npaETh, bWeight=False):
         import numpy as np
         lnThRm = []
@@ -769,9 +774,10 @@ class BashOpt:
         for nucleus in self.mloNuclei:
             for num in range(len(nucleus.mllspec)):
                 lfGSError.append(nucleus.fError**2)
-        npaGSError = np.array([E for i, E in enumerate(lfGSError) if i not in lnThRm], dtype = float)
+        npaGSError = np.array([E**2 for i, E in enumerate(lfGSError) if i not in lnThRm], dtype = float)
         npaNewErr = np.array([E**2 for i, E in enumerate(self.npaErrors) if i not in lnThRm], dtype = float)
-        npaNewErr = npaNewErr + npaGSError # add ground state error to the level error 
+        if self.useGS == 1:
+            npaNewErr = npaNewErr + npaGSError # add ground state error to the level error
         npaErrors = np.ones(*(npaNewErr.shape))*self.fThError**2 + npaNewErr # add the arbitrary theory error to the previous error contributions
         npaWeights = np.zeros(npaErrors.shape)
         for nIdx, elem in enumerate(npaErrors):
@@ -783,10 +789,10 @@ class BashOpt:
         else:
             npaRes = npaNewETh - npaNewEExp
             fChi = np.dot(np.transpose(np.power(npaRes, 2)), npaWeights)
-            fChi = float(fChi[0])
+            fChi = float(fChi[0])       
             temp = np.dot(np.transpose(npaRes), npaRes)
             temp = np.sqrt(np.sum(temp)/npaRes.size)
-            return fChi / float(self.nDOF), temp
+            return fChi / float(self.nDOF), float(temp)
 
     def OptStatus(self, res, fChiSq, npaME):
         sFormat = '{:14.10f}'
@@ -972,7 +978,9 @@ class BashOpt:
         import numpy as np
         import MatManip
         for nucleus in self.mloNuclei:
+#          get and scale TBTD according to the interaction
             tempTBTD, tempLabel = nucleus.getTBTD()
+            tempTBTD = np.multiply(tempTBTD, nucleus.fScale)
             if len(npaTBTDLabels) == 0 or np.all(npaTBTDLabels == np.array(tempLabel)):
                 if npaTBTDLabels == []:
                     npaTBTDLabels = np.array(tempLabel)
@@ -1030,28 +1038,30 @@ class BashOpt:
             newTBMEList = MatManip.rmSlice(lnTBMERmList,
                                            self.mloNuclei[0].llMESpec[1], 0)
 #       check if llsq problem is valid
-        if a.shape[0] < a.shape[1]:
+        if a.shape[0] <= a.shape[1]:
             print 'Warning sysetem underdeterimined with:'
             print a.shape[1], 'unknowns and only', a.shape[0], 'equations.'
             print 'Removing a subset of unknowns.'
-            nRem = a.shape[1] - a.shape[0]
+            nRem = a.shape[1] - a.shape[0] + 2
             nlRmList = list(range(a.shape[1]-nRem, a.shape[1]))
             a = MatManip.rmSlice(nlRmList, a, 1)
             npaME = MatManip.rmSlice(nlRmList, npaME, 0)
             newTBMEList = MatManip.rmSlice(np.subtract(nlRmList, self.mloNuclei[0].nOBME), newTBMEList, 0)
             for nuc in self.mloNuclei:
                 nuc.llMESpec[1] = newTBMEList
-        npaWeights, npaNewETh, npaNewEExp = self.calcChiDOF(npaETh, bWeight=True)
-        npaWeights = np.diag(npaWeights)
         lnThRm = []
         for i, elem in enumerate(npaETh):
             if elem == 'N/A':
                 lnThRm.append(i)
         a = MatManip.rmSlice(lnThRm, a, 0)
+        nLC = 30
+        self.nDOF = a.shape[0] - nLC - 1
+        npaWeights, npaNewETh, npaNewEExp = self.calcChiDOF(npaETh,
+                                                            bWeight=True)
+        npaWeights = np.diag(npaWeights)
         target = npaNewEExp - (npaNewETh - np.dot(a, npaME))
         aprime = np.dot(npaWeights, a)
         bprime = np.dot(npaWeights, target)
-        nLC = 30
         npaBGME = self.mloNuclei[0].getBGInt()
         print npaBGME
         ans = self.linCom(aprime, npaBGME, bprime, nLincoms=nLC)
@@ -1837,6 +1847,58 @@ class BashOpt:
         print ('The final unform error on the matrix elements is: ',
                sFormat.format(self.fThError))
 
+# make histogram of the errors in the levels.dat file. 
+# does so for initial and final errors.
+    def makeErHist(self, bReduce=False):
+        fIn = open(self.sOutPath + '\\tracking\\Levels.dat', 'r')
+        lFEr = []
+        lIEth = []
+        for nIdx, line in enumerate(fIn):
+            if nIdx > 0:
+                line = line.strip().split()
+                lFEr.append(line[-1])
+                lIEth.append(line[6])
+        import matplotlib.pyplot as plt
+        import math
+        lGood = [nIdx for nIdx, e in enumerate(lIEth) if e != 'N/A']
+        if bReduce:
+            lBad = []
+            for nIdx, er in enumerate(self.npaErrors):
+                if er >= 1.0:
+                    lBad.append(nIdx)
+            lGood = [nIdx for nIdx in lGood if nIdx not in lBad]
+        print max([self.npaErrors[nIdx] for nIdx in lGood])
+        lFEr = [abs(float(lFEr[nIdx])) for nIdx in lGood]
+        lIEr = [abs(float(lIEth[nIdx]) - float(self.EExp[nIdx])) for nIdx in lGood]
+        nBins = int(math.floor(math.sqrt(len(lFEr))))
+        fMin = min([min(lFEr), min(lIEr)])
+        fMax = max([max(lFEr), max(lIEr)])
+        fRMSI = math.sqrt(sum([er**2 for er in lIEr])/float(len(lIEr))) 
+        fRMSF = math.sqrt(sum([er**2 for er in lFEr])/float(len(lFEr)))
+        fakenumI = math.sqrt(sum([er**2 for er in lIEr]))/float(len(lIEr)) 
+        fakenumF = math.sqrt(sum([er**2 for er in lFEr]))/float(len(lFEr))
+        print 'initial', fRMSI, 'fake', fakenumI
+        print 'final', fRMSF, 'fake', fakenumF
+        print max(lIEr), max(lFEr)
+        fInc = (fMax - fMin) / nBins
+        lBins = [fMin + nIdx * fInc for nIdx in range(nBins + 1)]
+        f, (ax1, ax2) = plt.subplots(1, 2, sharey=True, sharex=True)
+        ax1.hist(lIEr, lBins)
+        ax1.set_title('Initial Error Distribution')
+        ax1.plot()
+        ax1.plot()
+        ax2.hist(lFEr, lBins)
+        ax2.set_title('Final Error Distribution')
+        ylims = plt.ylim()
+        ax1.plot([fRMSI, fRMSI], ylims, 'r--')
+        ax1.plot([fRMSF, fRMSF], ylims, 'k--')
+        ax2.plot([fRMSI, fRMSI], ylims, 'r--', label='Initial RMSE')
+        ax2.plot([fRMSF, fRMSF], ylims, 'k--', label='Final RMSE')
+        ax2.legend()
+        plt.tight_layout()
+        plt.savefig(self.sOutPath + '\\tracking\\ErrorHist')
+        plt.show()
+
 # #########################################################
 '''
 Start testing code
@@ -1845,10 +1907,10 @@ import sys
 sys.path.append('c:\\PythonScripts\\OxBashScripts\\')
 sys.path.append('C:\PythonScripts\generalmath')
 
-x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput-dai.in',
+x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput-Lodai.in',
             'c:\\PythonScripts\\OxBashWork\\test',
             'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=True)
 print x.IterativeLSq(sMethod='TBTD', bMix=False, nMaxIter=10, fTolin=10**-2)
 #print x.IterativeLSq(sMethod='single', bMix=False, nMaxIter=10, fTolin=10**-2)
-
+x.makeErHist(True)
 #ans, a, target, npaME = x.TBTDLeastSq()
