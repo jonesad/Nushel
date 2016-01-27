@@ -559,7 +559,7 @@ class BashOpt:
             self.sForm = fIn.readline().strip('\n')
             self.bExtrap = bool(eval(fIn.readline().strip('\n')))
 # check if the a number was passed if it was rad the data from this file if not
-# assume it is a file anf call a new script to solve the problem.
+# assume it is a file and call a new script to solve the problem.
             self.mloNuclei = []
             testline = fIn.readline().strip('\n')
             try:
@@ -1907,7 +1907,7 @@ import sys
 sys.path.append('c:\\PythonScripts\\OxBashScripts\\')
 sys.path.append('C:\PythonScripts\generalmath')
 
-x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput-Lodai.in',
+x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput-shorttestdai.in',
             'c:\\PythonScripts\\OxBashWork\\test',
             'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=True)
 print x.IterativeLSq(sMethod='TBTD', bMix=False, nMaxIter=10, fTolin=10**-2)

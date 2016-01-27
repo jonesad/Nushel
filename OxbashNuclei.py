@@ -182,7 +182,10 @@ class nucleus(OxbashOptFl.MEhandler):
         for numLev, lev in enumerate(self.mllspec):
           if len(line)==7 and lev[0]==line[4] and lev[1]==line[1] and lev[2]==line[6]:
             if self.useGS==0:
-              afETh.append(float(line[3]))
+              if numLev != 0:
+                afETh.append(float(line[3]))
+              else:
+                afETh.append(float(line[2]))                  
             elif self.useGS==1:
               afETh.append(float(line[2]))
             sortKey.append(lev)
