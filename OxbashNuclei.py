@@ -23,7 +23,7 @@ class nucleus(OxbashOptFl.MEhandler):
                llStateSpec=[], sOBDir='c:\\oxbash',
                dTBTDtoTBME={'4': '2', '5': '1', '6': '3'},
                dTBMEtoJ={'1': 1.5, '2': 2.5, '3': 0.5},
-               dRank={'1': 2, '2': 1, '3': 3}):
+               dRank={'1': 2, '2': 1, '3': 3}, serial=True):
     import os
     self.sOBDir = sOBDir
     self.sPath = sPath
@@ -52,13 +52,19 @@ class nucleus(OxbashOptFl.MEhandler):
     self.dRank = dRank
     self.dTBTDtoTBME = dTBTDtoTBME
     self.dTBMEtoJ = dTBMEtoJ
+    self.serial = serial
+    if not self.serial:
+        fMPINames = open(self.sPath + '\\MPINames.dat', 'a+')
+        fMPINames.write(self.sName+'\n')
+        fMPINames.close()
+    import os
     # copy the interaction to the working directory
     import shutil
     sIntDest = self.sPath + '\\' + self.sName + '\\' + self.sInt + '.int'
-    if not os.path.isfile(sIntDest):
-        shutil.copyfile(sOBDir + '\\sps\\' + self.sInt+'.int', sIntDest)
     shutil.copyfile(sOBDir + '\\label.tp', self.sPath + '\\' +
                     self.sName + '\\label.tp')
+    if not os.path.isfile(sIntDest):
+        shutil.copyfile(sOBDir + '\\sps\\' + self.sInt+'.int', sIntDest)
     if bExtrap:
         fInt = open(sIntDest)
         for line in fInt:
@@ -69,9 +75,10 @@ class nucleus(OxbashOptFl.MEhandler):
     else:
         self.fScale = 1.0
     self.nOBME = self.countOBME()
-    if initialize:
+#    do not run the calculation yet if serial is not true
+    if initialize and self.serial:
         self.runSM()
-    self.writeStatus()
+        self.writeStatus()
 # initialize the single particle matrix elements
     if len(llMESpec[0]) == 0:
         self.llMESpec[0] = range(1, self.countOBME() + 1)
@@ -223,11 +230,12 @@ class nucleus(OxbashOptFl.MEhandler):
 
 # run the shell model calculation        
   def runSM(self):
-    import os
-    os.chdir(self.sPath+'\\'+self.sName)
-    print self.sName + '.ans'    
-    os.system('shell '+self.sName+'.ans')
-    os.system(self.sName)
+    if self.serial:
+        import os
+        os.chdir(self.sPath + '\\' + self.sName)
+        print self.sName + '.ans'    
+        os.system('shell ' + self.sName + '.ans')
+        os.system(self.sName)
     self.writeEnergies()
     self.writeOcc()
 
@@ -593,7 +601,7 @@ class nucleus(OxbashOptFl.MEhandler):
                   lOldLine = line
                   continue
           fIn.close()
-          if np.all(lSPList != lOldSPList) and nIter>0:
+          if np.all(lSPList != lOldSPList) and nIter>0 and lOldSPList != []:
               print 'Warning: Single particle list has Changed from: '
               print lOldSPList
               print 'to:'
@@ -734,7 +742,7 @@ class nucleus(OxbashOptFl.MEhandler):
     temp = sIsospin.split('/')
     if len(temp) > 0 and int(temp[0]) % 2 == 0:
         sIsospin = str(int(eval(sIsospin)))
-    print sIsospin, self.nAZ
+#    print sIsospin, self.nAZ
     sName += dCode[sIsospin]
     dParity = dict({'+1': '0', '-1': '1'})
     sName += dParity[sParity]
@@ -771,8 +779,8 @@ class nucleus(OxbashOptFl.MEhandler):
         continue
       elif sLab == line[nLabColIdx]:
           return line[nCharColIdx]
-    print ('Error: Label "' + sLab +'" not found in ' + self.sOBDir +
-           '\\sps\\label.dat')
+#    print ('Error: Label "' + sLab +'" not found in ' + self.sOBDir +
+#           '\\sps\\label.dat')
     return None
     
 #    return the two body trasition densities in an array where each row is a

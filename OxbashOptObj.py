@@ -232,7 +232,9 @@ CreateInFile('C:/PythonScripts/OxBashScripts/OptInput.in')
 class BashOpt:
     'Class for shell model hamiltonian optimization problems'
     def __init__(self, sInPath, sOutPath, sErrorPath='', initialize=True,
-                 fThError=0.10, sOBDir='c:\\oxbash'):
+                 fThError=0.10, sOBDir='c:\\oxbash', serial=False, 
+                 sInitDir=''):
+        self.sInitDir = sInitDir
         self.nDOF = 1
         self.sOBDir = sOBDir
         self.fLastChi = 0
@@ -244,17 +246,42 @@ class BashOpt:
         self.track = 1
         self.sInPath = sInPath
         self.sOutPath = sOutPath
-# copy ocbash-dir.dat to the output folder
+# copy oxbash-dir.dat to the output folder
         import shutil
         import os
+        if self.sInitDir != '':
+            print 'Copying the initializaton from:"', self.sInitDir,'"...'
+            initialize = False
+            shutil.copytree(self.sInitDir, self.sOutPath)
+            print 'Copy complete!'
         if not os.path.isdir(self.sOutPath):
             os.makedirs(self.sOutPath)
         shutil.copyfile(self.sOBDir + '\\oxbash-dir.dat', self.sOutPath +
                         '\\oxbash-dir.dat')
         self.EExp = []
         self.npaErrors = []
+        self.serial = serial
+        if not self.serial and os.path.isfile(self.sOutPath + '\\MPINames.dat'):
+            os.remove(self.sOutPath + '\\MPINames.dat')
 # get info from input file and initializes the nuclei objects
         self.GetIn(initialize)
+        bRun=True
+#       call runsm and write status if things are to be run in parallel 
+        if not self.serial:
+#            find last slash charachter
+            i = -1
+            for nIdx, char in enumerate(self.sInPath):
+                if char == '\\':
+                    i = nIdx
+            spath = self.sInPath[:i]
+            os.chdir(self.sOutPath)
+            if initialize:
+                from subprocess import call
+                call('mpiexec -n 10 python ' + spath +'\\OxbashMPI.py')
+                for nuc in self.mloNuclei:
+                    nuc.runSM()
+                    nuc.writeStatus()
+                bRun=False
 # set a value for the theory error in the determination of the energy levels
         self.fThError = fThError
         if self.useGS == 1:
@@ -276,7 +303,7 @@ class BashOpt:
             self.writeLevs(self.sOutPath+'\\'+'tracking\\')
         self.llLastMESpec = [[], []]
         if initialize:
-            self.obj(self.mloNuclei[0].getME())
+            self.obj(self.mloNuclei[0].getME(), bRun=bRun)
         self.init = True
 #            self.EExp.shape = [self.EExp.size, 1]
 
@@ -407,7 +434,7 @@ class BashOpt:
                 for nucleus in self.mloNuclei:
                     nucleus.llMESpec = temp[2]
             elif sMethod == 'TBTD':
-                temp = self.TBTDLeastSq()
+                temp = self.TBTDLeastSq(methodArg)
                 npaGuess = temp[0]
             else:
                 print 'Error: sMethod=', sMethod, 'is not a valid argument.'
@@ -558,7 +585,7 @@ class BashOpt:
                 self.lsShared.append(fIn.readline().strip('\n'))
             self.sForm = fIn.readline().strip('\n')
             self.bExtrap = bool(eval(fIn.readline().strip('\n')))
-# check if the a number was passed if it was rad the data from this file if not
+# check if the a number was passed if it was read the data from this file if not
 # assume it is a file and call a new script to solve the problem.
             self.mloNuclei = []
             testline = fIn.readline().strip('\n')
@@ -595,7 +622,7 @@ class BashOpt:
                                                        self.useGS, self.sForm,
                                                        initialize,
                                                        self.bExtrap,
-                                                       llStateSpec)
+                                                       llStateSpec, serial=self.serial)
                     tempnuc.setmanBody(anBody)
                     self.mloNuclei.append(tempnuc)
                 import numpy as np
@@ -604,7 +631,6 @@ class BashOpt:
             except ValueError:
                 self.readDAI(testline, initialize)
             fIn.close()
-
 
 #   reads BAB's SD shell fitting information
     def readDAI(self, sDAIpath, initialize):
@@ -655,7 +681,7 @@ class BashOpt:
                                                    self.lsShared, llMESpec,
                                                    self.useGS, self.sForm,
                                                    initialize, self.bExtrap,
-                                                   llStateSpec)
+                                                   llStateSpec, serial=self.serial)
                     tempnuc.setmanBody(anBody)
                     self.mloNuclei.append(tempnuc)
 # get as much info as you can about the new nucleus from first line
@@ -705,7 +731,7 @@ class BashOpt:
                                        self.lsShared, llMESpec,
                                        self.useGS, self.sForm,
                                        initialize, self.bExtrap,
-                                       llStateSpec)
+                                       llStateSpec, serial=self.serial)
         tempnuc.setmanBody(anBody)
         self.mloNuclei.append(tempnuc)
         self.mnNuclei = mnNuclei
@@ -713,23 +739,35 @@ class BashOpt:
 
 
 # The objective function takes the array of matrix elements
-    def obj(self, npaME):
+    def obj(self, npaME, bRun=True):
         import numpy as np
         res = []
         numFound = 0
         numDesired = 0
+#       run the SM calculations in parallel if it is desired
+        if (not self.serial) and bRun:
+            import os
+#            find last slash charachter
+            i = -1
+            for nIdx, char in enumerate(self.sInPath):
+                if char == '\\':
+                    i = nIdx
+            spath = self.sInPath[:i]
+            os.chdir(self.sOutPath)
+            from subprocess import call
+            call('mpiexec -n 10 python ' + spath +'\\OxbashMPI.py')
         for oNuc in self.mloNuclei:
             '''
                 write ME to file
             '''
             if self.init:
-                try:
-                    oNuc.takeME(npaME)
-                except:
-                    print npaME
-                    print 'Error: The Matrix element list is invalid.'
-                    print npaME
-                    return 'Error: The Matrix element list is invalid.'
+#                try:
+                oNuc.takeME(npaME)
+#                except:
+#                    print 'Error: The Matrix element list is invalid.'
+#                    print npaME
+#                    print 'nAZ =', oNuc.nAZ
+#                    return 'Error: The Matrix element list is invalid.'
             if self.sForm == 'pn':
                 import os
                 sLevName = oNuc.getLevName()
@@ -738,8 +776,10 @@ class BashOpt:
                 if os.path.isfile(temp + '_'):
                     os.remove(temp + '_')
                     os.rename(temp, temp + '_')
-# run Shell model calc
-            oNuc.runSM()
+#           run Shell model calc if it was run in parallel this will just
+#           compile the tables of results.
+            if bRun or not self.serial:
+                oNuc.runSM()
 # get the energy difference for the relevant levels
             tempEth = oNuc.getEnNu()
             numFound += len(tempEth)
@@ -796,14 +836,14 @@ class BashOpt:
 
     def OptStatus(self, res, fChiSq, npaME):
         sFormat = '{:14.10f}'
-        fOut = open(self.sOutPath + '\\tracking\\res.dat', 'a+')
+        fOut = open(self.sOutPath + '\\tracking\\res.dat', 'a')
         fOut.write(sFormat.format(res) + '\n')
         fOut.close()
         if self.init:
-            fOut = open(self.sOutPath + '\\tracking\\chisq.dat', 'a+')
+            fOut = open(self.sOutPath + '\\tracking\\chisq.dat', 'a')
             fOut.write(sFormat.format(fChiSq) + '\n')
             fOut.close()
-        fOut = open(self.sOutPath+'\\tracking\\ME.dat', 'a+')
+        fOut = open(self.sOutPath+'\\tracking\\ME.dat', 'a')
         string = ''
         sFormMELab = '{:>13}\t'
         sFormME = '{:13.4f}\t'
@@ -823,7 +863,7 @@ class BashOpt:
             string = string + sFormME.format(float(elem))
         fOut.write(string + '\n')
         fOut.close()
-        fOut = open(self.sOutPath + '\\tracking\\AllME.dat', 'a+')
+        fOut = open(self.sOutPath + '\\tracking\\AllME.dat', 'a')
         npaAllME = self.mloNuclei[0].getME(bAll=True)
         sFormME = '{:10.4f}\t'
         string = ''
@@ -972,7 +1012,11 @@ class BashOpt:
         return ans, a, target, npaME
 
 #    do a linear least square optimization of the tbme using the TBTDs
-    def TBTDLeastSq(self):
+    def TBTDLeastSq(self, methodArg=[]):
+        if methodArg == []:
+            nLC = 30
+        else:
+            nLC = methodArg
         npaTBTDLabels = []
         npaTBTD = []
         import numpy as np
@@ -1054,7 +1098,6 @@ class BashOpt:
             if elem == 'N/A':
                 lnThRm.append(i)
         a = MatManip.rmSlice(lnThRm, a, 0)
-        nLC = 30
         self.nDOF = a.shape[0] - nLC - 1
         npaWeights, npaNewETh, npaNewEExp = self.calcChiDOF(npaETh,
                                                             bWeight=True)
@@ -1084,7 +1127,7 @@ class BashOpt:
                 epsilon = s[-1]
             print 'cutoff is ', epsilon
         else:
-            epsilon = s[nLincoms + 1]
+            epsilon = s[nLincoms]
         if a.shape[1] > a.shape[0]:
             print 'Warning: System of equations is underdetermined.'
             print a.shape[0], 'equations', a.shape[1], 'unknown quantities.'
@@ -1117,7 +1160,7 @@ class BashOpt:
             fOut.write(sFormHead.format('Data', 'Variables', 'Ignored',
                                         'Cutoff'))
         else:
-            fOut = open(self.sOutPath + '\\tracking\\lincom.dat', 'a+')
+            fOut = open(self.sOutPath + '\\tracking\\lincom.dat', 'a')
         sForm = '{:>10d}{:>10d}{:>10d}{:>10.4f}\n'
         fOut.write(sForm.format(numdat, numvar, numignore, eps))
         fOut.close()
@@ -1546,7 +1589,7 @@ class BashOpt:
         for expect, obtain, isoLab in zip(Eexpect, Eobtained, llnAZ):
             sIsofName = 'A_' + str(isoLab[0]) + 'Z_' + str(isoLab[1]) + '.mr'
             if os.path.isfile(sIsoPath + sIsofName):
-                fOut = open(sIsoPath + sIsofName, 'a+')
+                fOut = open(sIsoPath + sIsofName, 'a')
             else:
                 fOut = open(sIsoPath + sIsofName, 'w')
                 fOut.write(sIsoHeadForm.format('Mono', 'Increment', 'Expected',
@@ -1558,7 +1601,7 @@ class BashOpt:
         sMonoForm = '{:10}{:10.4f}{:10.4f}{:10.4f}\n'
         sMonoHeadForm = '{:10}{:10}{:10}{:10}\n'
         if os.path.isfile(sMonoPath+sMonofName):
-            fOut = open(sMonoPath+sMonofName, 'a+')
+            fOut = open(sMonoPath+sMonofName, 'a')
         else:
             fOut = open(sMonoPath+sMonofName, 'w')
             fOut.write(sMonoHeadForm.format('Isotope', 'Increment', 'Expected',
@@ -1726,7 +1769,7 @@ class BashOpt:
                 line += '{:>10}'.format(str(elem))
             fOut.write(line + '\n')
         else:
-            fOut = open(sMonoOutPath + 'MonoDiff.dat', 'a+')
+            fOut = open(sMonoOutPath + 'MonoDiff.dat', 'a')
             line = ''
             temp = Output[6]
             temp.shape = [Output[6].size]
@@ -1899,6 +1942,189 @@ class BashOpt:
         plt.savefig(self.sOutPath + '\\tracking\\ErrorHist')
         plt.show()
 
+    def testScaling(self, sOutpath, nMaxNumProcesses=26):
+        i = -1
+        for nIdx, char in enumerate(self.sInPath):
+            if char == '\\':
+                i = nIdx
+        spath = self.sInPath[:i]
+        import os
+        os.chdir(self.sOutPath)
+        from subprocess import call
+        import time     
+        sForm = '{:5d}{:10.2e}\n'
+        for nIdx in range(nMaxNumProcesses):
+            fStart = time.time() 
+            print 'num proc=' + str(nIdx+1)
+            call('mpiexec -n '+ str(nIdx + 1) + ' python ' + spath +'\\OxbashMPI.py')
+            fEnd = time.time()
+            fTime = fEnd - fStart
+            fOut = open(sOutpath, 'a')
+            fOut.write(sForm.format(nIdx, fTime))
+            fOut.close()
+
+    def parseScalingOutput(self, sOutPath):
+        '''
+            Take the output files of testScaling and read in the data to the output
+            variables. 
+        '''
+        fScaling = open(sOutPath, 'r')
+        lnIdxs = []
+        lfTimes = []
+        for line in fScaling:
+            temp = line.strip().split()
+            lnIdxs.append(int(temp[0]))
+            lfTimes.append(float(temp[1]))
+        fScaling.close()
+        fSums = open(self.sOutPath+'\\SumFile.dat', 'r')
+        temp = ''
+        lSums = []
+        for line in fSums:
+            temp = temp + line.strip('\n') + ' '
+            if temp[-2] == ']':
+                temp = temp.strip(' ')
+                temp = temp.strip('[')
+                temp = temp.strip(']').split()
+                temp1 = [float(elem) for elem in temp]                
+                lSums.append(temp1)
+                temp = ''
+        fSums.close()
+        fTimes = open(self.sOutPath + '\\times.dat', 'r')
+        lTimes = []
+        lWUID = []
+        for line in fTimes:
+            line = line.strip().split()
+            lWUID.append(int(line[0]))
+            lTimes.append(float(line[1]))
+        fTimes.close()
+        return [lnIdxs, lfTimes], lSums, [lWUID, lTimes]
+
+    def plotScalingOutput(self, plotDest='', WUdescriptor='',
+                          WdistDescriptor='', scalingIntervals=[0, 12, 24]):
+        '''
+            Read the scaling output and produce plots to analyze the results.
+        '''
+        llScaling, llSums, llTimes = self.parseScalingOutput('c:\\PythonScripts\\OxBashWork\\test\\scaling.dat')
+        fMaxSRT = max(llTimes[1])
+        temp = [max(elem) for elem in llSums]
+        fMaxSum = max(temp)
+        temp = [min(elem) for elem in llSums]
+        fMinSum = min(temp)
+        import matplotlib.pyplot as plt
+        '''
+            plot scaling start by calculating regressions of the indicated intervals
+        '''
+        from scipy.stats import linregress as linreg
+        x = [elem for elem in llScaling[0][:]]
+        nMY = max(llScaling[1][1:])
+        y = [nMY/elem for elem in llScaling[1][:]]
+        fig0 = plt.figure()
+        ax0 = fig0.add_subplot(111)
+        ax0.plot(x, y, ls='', marker='o', label='Measured')
+        sForm = 'R{:d}:a={:3.2f},b={:3.2f},$r^2$={:3.2f}'
+        for nIdx in range(len(scalingIntervals) - 1):
+            start = scalingIntervals[nIdx]
+            stop = scalingIntervals[nIdx + 1]
+            xlims = [x[start], x[stop]]
+            temp = linreg(x[start:stop], y[start:stop])
+            slope = temp[0]
+            inter = temp[1]
+            r = temp[2]
+            ax0.plot(xlims, [xlims[0]*slope + inter, xlims[1] * slope + inter],
+                     ls='--', label=sForm.format(nIdx + 1, slope, inter, r**2))
+        ax0.set_title('Speed Up')
+        ax0.set_ylabel('$t_{max}/{t_p}$', fontsize=14)
+        ax0.set_xlabel('# of Processes')
+        ax0.legend(loc='best')
+        fig0.savefig(plotDest + 'Scaling.pdf')    
+        '''
+            Plot Sums
+        '''
+        fig1 = plt.figure(figsize=[12,16.5])
+        ax = fig1.add_subplot(111)
+        ax1 = fig1.add_subplot(211)
+        ax2 = fig1.add_subplot(212)
+        ax.spines['top'].set_color('none')
+        ax.spines['bottom'].set_color('none')
+        ax.spines['left'].set_color('none')
+        ax.spines['right'].set_color('none')
+        ax.tick_params(labelcolor='w', top='off', bottom='off', left='off', right='off')
+        lMarks = ['*','+']
+        sForm = 'P={:d}'
+        for i, series in enumerate(llSums[:12]):
+            ax1.semilogy(series, marker=lMarks[i % 2], ls='', label=sForm.format(i + 1))
+        lim = ax1.get_xlim()
+        ax1.semilogy(lim, [fMaxSum, fMaxSum], ls='--', color='k', label='SRT')
+        ax1.semilogy(lim, [fMaxSRT, fMaxSRT], ls='--', color='b', label='MaxWU')
+        for i, series in enumerate(llSums[12:]):
+            ax2.semilogy(series, marker=lMarks[i % 2], ls='', label=sForm.format(i + 12))
+        lim = ax2.get_xlim()               
+        ax2.semilogy(lim, [fMinSum, fMinSum], ls='--', color='k', label='MinWL')
+        ax2.semilogy(lim, [fMaxSRT, fMaxSRT], ls='--', color='b', label='MaxWU')
+        sTitle = 'WorkLoad Balancing'
+        if WdistDescriptor != '':
+            sTitle += 'for' + WdistDescriptor
+        ax.set_title(sTitle)
+        ax.set_xlabel('Process ID', fontsize=14)
+        ax.set_ylabel('Serial Runtime of Workload (s)', fontsize=14)
+        ax1.legend(loc='best')
+        ax2.legend(loc='best')
+        plt.tight_layout()
+        fig1.savefig(plotDest + 'WBal.pdf')
+        '''
+            plot times
+        '''
+        from math import sqrt
+        nBins = int(4 * sqrt(float(len(llTimes[1]))))
+        fig2 = plt.figure()
+        ax = fig2.add_subplot(111)
+        ax.hist(llTimes[1], nBins)
+        sTitle = 'Distribution of Work Unit Sizes'
+        if WUdescriptor != '':
+            sTitle += ' for ' + WUdescriptor
+        ax.set_title(sTitle)
+        ax.set_xlabel('Serial Runtime (s)')
+        ax.set_ylabel('Frequency')
+        fig2.savefig(plotDest + 'WUDist.pdf')
+    
+    def reInit(self):
+        '''
+            Reinitialize the output file using the path to a saved 
+            initialization if it exists.
+            Warning: Deletes the previous work in the output file so be sure to 
+            save anything you want before using this method! 
+        '''
+        import os
+        os.chdir(self.sOutPath+'\\..')
+        import shutil
+        shutil.rmtree(self.sOutPath)
+        if self.sInitDir != '':
+            print 'Copying the initializaton from:"', self.sInitDir,'"...'
+            shutil.copytree(self.sInitDir, self.sOutPath)
+            print 'Copy complete!'
+        else:
+            print 'Error: no initialization directory provided'
+
+    def testLincomSingle(self, sOutDir, lnRng=[]):
+        '''
+            Test how the number of linear combinations fit in the optimization
+            affects the residue of the first iteration. Take the baseline from
+            the initialization, and iteratet through the range of linear 
+            combinations provided. Write results to an output file in the 
+            specified directory.
+        '''
+        import os
+        if not os.path.isdir(sOutDir):
+            os.makedirs(sOutDir)
+        for n in range(lnRng[0], lnRng[1]):
+            ans, a, target, npaME = self.TBTDLeastSq(methodArg=n)
+            fRes = self.obj(ans)
+            fOut = open(sOutDir+'\\TLCSingle.dat', 'a')
+            sForm = '{:>10d}{:>10.5f}'
+            fOut.write(sForm.format(n, fRes))
+            fOut.close()
+            self.reInit()
+
 # #########################################################
 '''
 Start testing code
@@ -1906,11 +2132,31 @@ Start testing code
 import sys
 sys.path.append('c:\\PythonScripts\\OxBashScripts\\')
 sys.path.append('C:\PythonScripts\generalmath')
-
-x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput-shorttestdai.in',
+initialization = 'E:\\initdir\\test'
+x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput-Lodai.in',
             'c:\\PythonScripts\\OxBashWork\\test',
-            'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=True)
-print x.IterativeLSq(sMethod='TBTD', bMix=False, nMaxIter=10, fTolin=10**-2)
+            'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=True, 
+            serial =False, sInitDir=initialization)
+x.testLincomSingle('c:\\PythonScripts\\OxBashWork\\tlc', lnRng=[0, 63])
+
+#test that parallel execution is appreciably faster than serial execution
+#import time 
+#me = x.mloNuclei[0].getME()
+#npstart = time.clock()
+#x.obj(me)
+#npend = time.clock()
+#x.serial = True
+#for onuc in x.mloNuclei:
+#    onuc.serial = True
+#nsstart = time.clock()
+#x.obj(me)
+#nsend = time.clock()
+#
+#print '\n' * 5
+#print 'Parrallel', npend - npstart
+#print 'Serial', nsend - nsstart
+
+
 #print x.IterativeLSq(sMethod='single', bMix=False, nMaxIter=10, fTolin=10**-2)
-x.makeErHist(True)
+#x.makeErHist(True)
 #ans, a, target, npaME = x.TBTDLeastSq()

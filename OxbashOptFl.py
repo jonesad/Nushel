@@ -196,7 +196,8 @@ class MEhandler:
     sOpFile = self.makeIntPath('')
     sOpFile = sOpFile[:-3] + 'op'
     import os
-    os.remove(sOpFile)
+    if os.path.isfile(sOpFile):
+        os.remove(sOpFile)
     os.system('shell '+self.sName+'.ans')
 
 #Get TBME
