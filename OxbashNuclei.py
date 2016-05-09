@@ -354,7 +354,7 @@ class nucleus(OxbashOptFl.MEhandler):
             temp = line[5:5 + self.countOBME()]
             temp=[temp]
             sortKey.append(lev)
-            if npaOcc!=[]:
+            if len(npaOcc) != 0:
               npaOcc=np.append(npaOcc, temp, axis=0)
             else:
               npaOcc=temp

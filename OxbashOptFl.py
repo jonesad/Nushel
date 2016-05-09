@@ -79,16 +79,17 @@ class MEhandler:
     fIntSrc=open(self.makeIntPath('_'),'r') 
     fIntOut=open(self.makeIntPath(''),'w')
     nLine=0
+    import numpy as np
     for line in fIntSrc:
       if line[0]!='!':
         sNew=''
-        sStart="{0:3}{1:>9.5f}"
-        sNext="{0:>9.5f}"
+        sStart="{0:<3}{1:>9.4f}"
+        sNext="{0:>9.4f}"
         templine=line.strip().split()        
         if len(self.llMESpec[0]) != 0 and nLine == 0:
 #          print "Writing only listed ME"
           for nElemIdx, elem in enumerate(self.llMESpec[0]):
-            if type(self.llMESpec[0][0]) == int:
+            if type(self.llMESpec[0][0]) == int or type(self.llMESpec[0][0]) == np.int32:
                 templine[elem] = npaME[nElemIdx]
             elif type(self.llMESpec[0][0]) == list:
                 templine[elem] = npaME[nElemIdx[0]]
@@ -150,7 +151,7 @@ class MEhandler:
     shutil.copyfile(self.makeIntPath(''),self.makeIntPath('_'))
     fIntSrc=open(self.makeIntPath('_'),'r') 
     fIntOut=open(self.makeIntPath(''),'w')
-    sStart="{0:>4}"
+    sStart="{0:>3}"
     sNext="{0:>3}"
     sEnd="{0:>4}{1:>3}{2:>9.4f}"
     nUnCm=0

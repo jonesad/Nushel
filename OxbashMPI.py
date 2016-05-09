@@ -28,7 +28,7 @@ def dstributeLoad(nSize, nNames,sMethod=''):
             lFnames.append(line[0])
             lfFtimes.append(line[1])
         fTimes.close()
-    if sMethod == 'bunched' or sMethod == 'spread':
+    if (sMethod == 'bunched' or sMethod == 'spread') and bTimes ==True:
         '''
             Put largest workloads on adjacent processes
         '''
@@ -44,6 +44,7 @@ def dstributeLoad(nSize, nNames,sMethod=''):
             llnIdxs[nIdx].append(lFcopy[nJIdx])
             del lfFtimes[nJIdx]
             del lFcopy[nJIdx]
+            print len(lfFtimes), ' left to bunch.'
         if sMethod == 'spread':
             print 'spreading'
             llnIdxsnew = []
@@ -62,7 +63,7 @@ def dstributeLoad(nSize, nNames,sMethod=''):
             npaSums = np.array(newSums)
             llnIdxs = [elem for elem in llnIdxsnew]
             print 'spreading  complete'               
-    if sMethod =='':
+    if sMethod =='' or bTimes == False:
         '''
             Deal out the list of names in the order they come
         '''

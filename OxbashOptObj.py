@@ -226,7 +226,7 @@ def CreateInFile(sInfilePath):
     fInFile.write('  0  1  +1   0.00000   0.00000\n')
 
 # code to create an input file
-CreateInFile('C:/PythonScripts/OxBashScripts/OptInput.in')
+#CreateInFile('C:/PythonScripts/OxBashScripts/OptInput.in')
 
 
 class BashOpt:
@@ -776,20 +776,33 @@ class BashOpt:
                 if os.path.isfile(temp + '_'):
                     os.remove(temp + '_')
                     os.rename(temp, temp + '_')
+        if (not self.serial) and bRun:
+            import os
+#            find last slash charachter
+            i = -1
+            for nIdx, char in enumerate(self.sInPath):
+                if char == '\\':
+                    i = nIdx
+            spath = self.sInPath[:i]
+            os.chdir(self.sOutPath)
+            from subprocess import call
+            call('mpiexec -n 10 python ' + spath +'\\OxbashMPI.py')
+
 #           run Shell model calc if it was run in parallel this will just
 #           compile the tables of results.
-            if bRun or not self.serial:
+        if bRun or not self.serial:
+            for oNuc in self.mloNuclei:
                 oNuc.runSM()
 # get the energy difference for the relevant levels
-            tempEth = oNuc.getEnNu()
-            numFound += len(tempEth)
-            numDesired += len(oNuc.mllspec)
-            if len(tempEth) - len(oNuc.mllspec) != 0:
-                print oNuc.nAZ
-                print 'Looked for', len(oNuc.mllspec), 'levels. Foumd', len(tempEth)
-                print 'Discrepency is:', numFound - numDesired
-                raw_input('Press Enter...')
-            res.extend(tempEth)
+                tempEth = oNuc.getEnNu()
+                numFound += len(tempEth)
+                numDesired += len(oNuc.mllspec)
+                if len(tempEth) - len(oNuc.mllspec) != 0:
+                    print oNuc.nAZ
+                    print 'Looked for', len(oNuc.mllspec), 'levels. Foumd', len(tempEth)
+                    print 'Discrepency is:', numFound - numDesired
+                    raw_input('Press Enter...')
+                res.extend(tempEth)
         npaETh = [e for e in res]
         fChiSq, fRes = self.calcChiDOF(npaETh, bWeight=False)
         if self.track == 1:
@@ -1025,10 +1038,12 @@ class BashOpt:
 #          get and scale TBTD according to the interaction
             tempTBTD, tempLabel = nucleus.getTBTD()
             tempTBTD = np.multiply(tempTBTD, nucleus.fScale)
-            if len(npaTBTDLabels) == 0 or np.all(npaTBTDLabels == np.array(tempLabel)):
+            if len(npaTBTDLabels) == 0 or \
+            (np.shape(npaTBTDLabels) == np.shape(tempLabel) and \
+            np.all(np.equal(npaTBTDLabels, tempLabel))):
                 if npaTBTDLabels == []:
                     npaTBTDLabels = np.array(tempLabel)
-                if npaTBTD == []:
+                if len(npaTBTD) == 0:
                     npaTBTD = tempTBTD
                 else:
                     npaTBTD = np.append(npaTBTD, tempTBTD, axis=0)
@@ -1044,7 +1059,7 @@ class BashOpt:
                                                dtype=int)))
             nucleus.llMESpec[1] = npaTBTDLabels
             tempth = nucleus.getEnNu()
-            if npaETh != []:
+            if len(npaETh) != 0:
                 npaETh = np.append(npaETh, tempth, axis=0)
             else:
                 npaETh = tempth
@@ -1062,7 +1077,7 @@ class BashOpt:
             if nTemp != npaTempOcc.shape[0]:
                 print 'Discrepency in sought and found Occupations in', nucleus.nAZ 
                 print 'Sought:', nTemp, 'Found:', npaTempOcc.shape[0] 
-            if np.all(npaOcc != []):
+            if len(npaOcc) != 0:
                 npaOcc = np.append(npaOcc, npaTempOcc, axis=0)
             else:
                 npaOcc = npaTempOcc
@@ -1108,6 +1123,7 @@ class BashOpt:
         npaBGME = self.mloNuclei[0].getBGInt()
         print npaBGME
         ans = self.linCom(aprime, npaBGME, bprime, nLincoms=nLC)
+        print npaTBTDLabels 
         return ans, a, target, npaME
 
 # lst square solution to matrix a, with initial guess xbg, target b, and an 
@@ -1116,7 +1132,7 @@ class BashOpt:
         import numpy as np
         [u, s, vt] = np.linalg.svd(a)
 #        use default value if no valid epsilon is given 
-        if epsilon <= 0 and (nLincoms <= 0 or nLincoms > s.size):
+        if epsilon <= 0 and (nLincoms < 0 or nLincoms > s.size):
             print 'Object: oxbashopt. method: linCom.'
             print 'Using default number of linear combinations.'
             try:
@@ -1126,6 +1142,10 @@ class BashOpt:
             except:
                 epsilon = s[-1]
             print 'cutoff is ', epsilon
+        elif nLincoms == 0:
+            print 'oxcbashopt.lincom.'
+            print 'nLincoms = 0 returninging background interaction.'
+            return xbg
         else:
             epsilon = s[nLincoms]
         if a.shape[1] > a.shape[0]:
@@ -2120,10 +2140,30 @@ class BashOpt:
             ans, a, target, npaME = self.TBTDLeastSq(methodArg=n)
             fRes = self.obj(ans)
             fOut = open(sOutDir+'\\TLCSingle.dat', 'a')
-            sForm = '{:>10d}{:>10.5f}'
+            sForm = '{:>10d}{:>10.5f}\n'
             fOut.write(sForm.format(n, fRes))
             fOut.close()
             self.reInit()
+    def tlcPlot(self, sTLCDat, fRef = 0.169):
+        fDat = open(sTLCDat, 'r')
+        lfLC=[]
+        lfDat=[]
+        for line in fDat:
+            line = line.strip().split()
+            lfLC.append(float(line[0]))
+            lfDat.append(float(line[1]))
+        print len(lfLC), len(lfDat)
+        print lfLC, lfDat
+        from matplotlib import pyplot as plt
+        fig, ax = plt.subplots()
+        ax.plot(lfLC, lfDat, label = 'LinCom Data')
+        ax.set_xlabel('# linear combinations fit')
+        ax.set_ylabel('RMS error after 1 iteration (MeV)')
+        ax.set_title('usda w/sdba background')
+        fXlim = ax.get_xlim()
+        ax.plot(fXlim, [fRef,fRef], ls='--', label='sdba w/o fit')
+        plt.legend(loc='best')
+        plt.savefig('c:\\PythonScripts\\OxBashWork\\tlc\\tlc.pdf')
 
 # #########################################################
 '''
@@ -2132,12 +2172,27 @@ Start testing code
 import sys
 sys.path.append('c:\\PythonScripts\\OxBashScripts\\')
 sys.path.append('C:\PythonScripts\generalmath')
-initialization = 'E:\\initdir\\test'
-x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput-Lodai.in',
+#initialization = 'E:\\initdir\\test'
+initialization = 'E:\\initdir\\shorttest'
+
+x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput-shorttestdai.in',
             'c:\\PythonScripts\\OxBashWork\\test',
-            'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=True, 
-            serial =False, sInitDir=initialization)
-x.testLincomSingle('c:\\PythonScripts\\OxBashWork\\tlc', lnRng=[0, 63])
+            'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=False, 
+            serial = False, sInitDir='')
+
+
+#sTLCDat='c:\\PythonScripts\\OxBashWork\\tlc\\TLCSingle.dat'
+#x.tlcPlot(sTLCDat)
+#x.testLincomSingle('c:\\PythonScripts\\OxBashWork\\tlc', lnRng=[0, 63])
+
+
+#x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput-shorttestdai.in',
+#            'c:\\PythonScripts\\OxBashWork\\test',
+#            'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=True, 
+#            serial =False, sInitDir=initialization)
+#
+#x.testLincomSingle('c:\\PythonScripts\\OxBashWork\\tlc', lnRng=[0, 63])
+
 
 #test that parallel execution is appreciably faster than serial execution
 #import time 
@@ -2159,4 +2214,5 @@ x.testLincomSingle('c:\\PythonScripts\\OxBashWork\\tlc', lnRng=[0, 63])
 
 #print x.IterativeLSq(sMethod='single', bMix=False, nMaxIter=10, fTolin=10**-2)
 #x.makeErHist(True)
-#ans, a, target, npaME = x.TBTDLeastSq()
+ans, a, target, npaME = x.TBTDLeastSq(65)
+#print x.obj(ans)
