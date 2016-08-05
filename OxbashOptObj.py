@@ -238,9 +238,9 @@ class BashOpt:
         self.nDOF = 1
         self.sOBDir = sOBDir
         self.fLastChi = 0
-# flag that says to use the groundstate energy in optimization
         self.init = False
-        self.useGS = 0
+# flag that says to use the groundstate energy in optimization
+        self.useGS = 1
 # flag that tracks the residue and energy levels over the iterations
         self.sMethod = ''
         self.track = 1
@@ -252,13 +252,17 @@ class BashOpt:
         if self.sInitDir != '':
             print 'Copying the initializaton from:"', self.sInitDir,'"...'
             initialize = False
-            shutil.copytree(self.sInitDir, self.sOutPath)
-            print 'Copy complete!'
+            try:
+                shutil.copytree(self.sInitDir, self.sOutPath)
+                print 'Copy complete!'
+            except WindowsError:
+                print 'Initialization directory destination exists. Using existing directory.'
         if not os.path.isdir(self.sOutPath):
             os.makedirs(self.sOutPath)
         shutil.copyfile(self.sOBDir + '\\oxbash-dir.dat', self.sOutPath +
                         '\\oxbash-dir.dat')
         self.EExp = []
+        #tbtd labels will be put here if necessary
         self.npaErrors = []
         self.serial = serial
         if not self.serial and os.path.isfile(self.sOutPath + '\\MPINames.dat'):
@@ -400,7 +404,7 @@ class BashOpt:
         fResNew = 100
         lRes = [100, 1000, 10000, 100000]
         nIter = 0
-        fTol = fTolin / float(len(self.mloNuclei[0].mllspec))
+        fTol = fTolin #/ float(len(self.mloNuclei[0].mllspec))
         lME = [[], [], [], []]
         if sMethod == 'mono':
             npaMonoLabel = self.mloNuclei[0].getMonoLabel()
@@ -740,7 +744,6 @@ class BashOpt:
 
 # The objective function takes the array of matrix elements
     def obj(self, npaME, bRun=True):
-        import numpy as np
         res = []
         numFound = 0
         numDesired = 0
@@ -804,9 +807,9 @@ class BashOpt:
                     raw_input('Press Enter...')
                 res.extend(tempEth)
         npaETh = [e for e in res]
-        fChiSq, fRes = self.calcChiDOF(npaETh, bWeight=False)
+        fChiSq, fRes, fDelta = self.calcChiDOF(npaETh, bWeight=False)
         if self.track == 1:
-            self.OptStatus(fRes, fChiSq, npaME)
+            self.OptStatus(fRes, fChiSq, fDelta, npaME)
         self.fLastChi = fChiSq
         return fRes
 
@@ -845,16 +848,19 @@ class BashOpt:
             fChi = float(fChi[0])       
             temp = np.dot(np.transpose(npaRes), npaRes)
             temp = np.sqrt(np.sum(temp)/npaRes.size)
-            return fChi / float(self.nDOF), float(temp)
+            term1 = 2.*((2.*10**-5/float(self.nDOF))*np.sum(np.divide(npaRes, np.power(npaErrors,2))))**2
+#            term2 = ((2.*10**-5/float(self.nDOF))*np.sum(np.divide(npaRes, np.power(npaErrors,3))))**2
+            ferr = np.sqrt(term1)
+            return fChi / float(self.nDOF), float(temp), ferr
 
-    def OptStatus(self, res, fChiSq, npaME):
+    def OptStatus(self, res, fChiSq, fDelta,npaME):
         sFormat = '{:14.10f}'
         fOut = open(self.sOutPath + '\\tracking\\res.dat', 'a')
         fOut.write(sFormat.format(res) + '\n')
         fOut.close()
         if self.init:
             fOut = open(self.sOutPath + '\\tracking\\chisq.dat', 'a')
-            fOut.write(sFormat.format(fChiSq) + '\n')
+            fOut.write(sFormat.format(fChiSq) + sFormat.format(fDelta) + '\n')
             fOut.close()
         fOut = open(self.sOutPath+'\\tracking\\ME.dat', 'a')
         string = ''
@@ -1029,7 +1035,7 @@ class BashOpt:
         if methodArg == []:
             nLC = 30
         else:
-            nLC = methodArg
+            nLC = methodArg[0]
         npaTBTDLabels = []
         npaTBTD = []
         import numpy as np
@@ -1039,7 +1045,7 @@ class BashOpt:
             tempTBTD, tempLabel = nucleus.getTBTD()
             tempTBTD = np.multiply(tempTBTD, nucleus.fScale)
             if len(npaTBTDLabels) == 0 or \
-            (np.shape(npaTBTDLabels) == np.shape(tempLabel) and \
+            (np.all(np.equal(np.shape(npaTBTDLabels),np.shape(tempLabel))) and \
             np.all(np.equal(npaTBTDLabels, tempLabel))):
                 if npaTBTDLabels == []:
                     npaTBTDLabels = np.array(tempLabel)
@@ -1082,48 +1088,54 @@ class BashOpt:
             else:
                 npaOcc = npaTempOcc
         npaME = self.mloNuclei[0].getOBME(bAll=True)
-        npaME = np.append(npaME, self.mloNuclei[0].getTBME())
+        npaME = np.append(npaME, self.mloNuclei[0].getTBME(bAll=False))
+#        npaME = self.mloNuclei[0].getME(bAll=False)
         npaME.shape = [npaME.size, 1]
         a = np.append(npaOcc, npaTBTD, axis=1)
         nlRMList = MatManip.getZeroCols(a)
-        newTBMEList = []        
-        print a.shape, npaME.shape
-        print self.mloNuclei[0].getOBME(bAll=True).shape, len(self.mloNuclei[0].getTBME())
+        newTBMEList = []
         if nlRMList != []:
             lnTBMERmList = [elem for elem in nlRMList if elem > 2]
-            a= MatManip.rmSlice(lnTBMERmList, a, 1)
-            npaME = MatManip.rmSlice(lnTBMERmList, npaME, 0)
-            lnTBMERmList = np.subtract(lnTBMERmList,3)
-            newTBMEList = MatManip.rmSlice(lnTBMERmList,
-                                           self.mloNuclei[0].llMESpec[1], 0)
+            a= np.delete(a, lnTBMERmList, 1)
+            npaME = np.delete(npaME, lnTBMERmList, 0)
+            lnTBMERmList = np.subtract(lnTBMERmList, 3)
+            newTBMEList = np.delete(self.mloNuclei[0].llMESpec[1], lnTBMERmList,0)
 #       check if llsq problem is valid
         if a.shape[0] <= a.shape[1]:
-            print 'Warning sysetem underdeterimined with:'
+            print 'Warning system underdeterimined with:'
             print a.shape[1], 'unknowns and only', a.shape[0], 'equations.'
             print 'Removing a subset of unknowns.'
             nRem = a.shape[1] - a.shape[0] + 2
             nlRmList = list(range(a.shape[1]-nRem, a.shape[1]))
-            a = MatManip.rmSlice(nlRmList, a, 1)
-            npaME = MatManip.rmSlice(nlRmList, npaME, 0)
-            newTBMEList = MatManip.rmSlice(np.subtract(nlRmList, self.mloNuclei[0].nOBME), newTBMEList, 0)
+            a = np.delete(a, nlRmList, 1)
+            npaME = np.delete(npaME, nlRmList, 0)
+            newTBMEList = np.delete(newTBMEList, np.subtract(nlRmList, self.mloNuclei[0].nOBME), 0)
+        if len(newTBMEList) != 0:
             for nuc in self.mloNuclei:
+                newTBMEList = np.array(newTBMEList)
                 nuc.llMESpec[1] = newTBMEList
         lnThRm = []
         for i, elem in enumerate(npaETh):
-            if elem == 'N/A':
+            if np.all(elem == 'N/A'):
                 lnThRm.append(i)
-        a = MatManip.rmSlice(lnThRm, a, 0)
+        a = np.delete(a, lnThRm, 0)
         self.nDOF = a.shape[0] - nLC - 1
         npaWeights, npaNewETh, npaNewEExp = self.calcChiDOF(npaETh,
                                                             bWeight=True)
         npaWeights = np.diag(npaWeights)
-        target = npaNewEExp - (npaNewETh - np.dot(a, npaME))
+        if len(methodArg) > 1 and methodArg[1] == 'fd':
+            #fit differences
+            target = npaNewEExp - npaNewETh
+        else:
+            #fit absolute energy
+            target = npaNewEExp
         aprime = np.dot(npaWeights, a)
         bprime = np.dot(npaWeights, target)
         npaBGME = self.mloNuclei[0].getBGInt()
-        print npaBGME
         ans = self.linCom(aprime, npaBGME, bprime, nLincoms=nLC)
-        print npaTBTDLabels 
+        if len(methodArg) > 1 and methodArg[1] == 'fd':
+            #fit differences
+            ans = ans + npaME
         return ans, a, target, npaME
 
 # lst square solution to matrix a, with initial guess xbg, target b, and an 
@@ -1147,7 +1159,8 @@ class BashOpt:
             print 'nLincoms = 0 returninging background interaction.'
             return xbg
         else:
-            epsilon = s[nLincoms]
+            epsilon = s[nLincoms - 1]
+#            epsilon= s[nLincoms]
         if a.shape[1] > a.shape[0]:
             print 'Warning: System of equations is underdetermined.'
             print a.shape[0], 'equations', a.shape[1], 'unknown quantities.'
@@ -1156,10 +1169,12 @@ class BashOpt:
         d[:np.amin(d.shape), :np.amin(d.shape)] = np.diag(1./s)
         yn = np.dot(d, e)
         ys = np.dot(vt, xbg)
+        ys = np.dot(d[:len(s),:len(s)], ys)
         y = []
         numbelow = 0
+        epsilon -= np.finfo(type(epsilon)).eps
         for i in range(s.size):
-            if s[i] > epsilon:
+            if s[i] >= epsilon:
                 y.append(yn[i])
             else:
                 y.append(ys[i])
@@ -2136,14 +2151,34 @@ class BashOpt:
         import os
         if not os.path.isdir(sOutDir):
             os.makedirs(sOutDir)
-        for n in range(lnRng[0], lnRng[1]):
-            ans, a, target, npaME = self.TBTDLeastSq(methodArg=n)
+        for n in lnRng:
+            ans, a, target, npaME = self.TBTDLeastSq(methodArg=[n, 'fd'])
             fRes = self.obj(ans)
             fOut = open(sOutDir+'\\TLCSingle.dat', 'a')
             sForm = '{:>10d}{:>10.5f}\n'
             fOut.write(sForm.format(n, fRes))
             fOut.close()
             self.reInit()
+
+    def testLincomNone(self, sOutDir, lnRng=[]):
+        '''
+            Test how the number of linear combinations fit in the optimization
+            affects the residue of the result. Take the baseline from
+            the initialization, and iteratet through the range of linear 
+            combinations provided. Write results to an output file in the 
+            specified directory.
+        '''
+        import os
+        if not os.path.isdir(sOutDir):
+            os.makedirs(sOutDir)
+        for n in lnRng:
+            ans, a, target, npaME = self.TBTDLeastSq(methodArg=[n, 'fd'])
+            fRes = self.obj(ans)
+            fOut = open(sOutDir+'\\TLCSingle.dat', 'a')
+            sForm = '{:>10d}{:>10.5f}\n'
+            fOut.write(sForm.format(n, fRes))
+            fOut.close()
+            
     def tlcPlot(self, sTLCDat, fRef = 0.169):
         fDat = open(sTLCDat, 'r')
         lfLC=[]
@@ -2164,7 +2199,56 @@ class BashOpt:
         ax.plot(fXlim, [fRef,fRef], ls='--', label='sdba w/o fit')
         plt.legend(loc='best')
         plt.savefig('c:\\PythonScripts\\OxBashWork\\tlc\\tlc.pdf')
-
+    
+    def twoInteractionCorrelation(self, lsIntPaths, lsIntLabs):
+        if len(lsIntPaths) !=2 or len(lsIntLabs)!=2:
+            print 'Error twoInteractionCorrelation: needs 2 paths and two labels.'
+            return None
+        llfOBME = [self.mloNuclei[0].getOBME(sBGIntPath=lsIntPaths[i], bAll=True) for i in range(len(lsIntPaths))]
+        llfTBME = [self.mloNuclei[0].getTBME(sBGIntPath=lsIntPaths[i], bAll=True) for i in range(len(lsIntPaths))]
+        import matplotlib.pyplot as plt
+        fig,ax = plt.subplots(1,1)
+        ax.plot(llfOBME[0][0][:],llfOBME[1][0][:], color= 'k', ls='', marker = 'o',label='SPE')
+        ax.plot(llfTBME[0], llfTBME[1], color= 'b', ls='', marker = '*', label='TBME')
+        print llfOBME
+        temp=list(llfOBME[0][0][:])
+        temp.extend(list(llfTBME[0]))
+        print temp
+        temp.sort()
+        ax.plot(temp, temp, color= 'r', ls='--', marker = '',label='ideal')
+        ax.set_xlabel(lsIntLabs[0])
+        ax.set_ylabel(lsIntLabs[1])
+        ax.legend(loc='best')
+        fig.tight_layout()
+        plt.show()
+        return None
+        
+    def intSideBySide(self, sPathNew, sPathOld, sPathComp):
+        lOldOBME=self.mloNuclei[0].getOBME(sBGIntPath=sPathOld,bAll=True)
+        lNewOBME=self.mloNuclei[0].getOBME(sBGIntPath=sPathNew,bAll=True)
+        lOldTBME=self.mloNuclei[0].getTBME(sBGIntPath=sPathOld,bAll=True)
+        lNewTBME=self.mloNuclei[0].getTBME(sBGIntPath=sPathNew,bAll=True)
+        
+        fComp = open(sPathComp, 'w')
+        sHForm = '{:22}{:>10}{:>10}{:>10}{:>10}\n'
+        sDatForm = '{:22}{:10.4f}{:10.4f}{:10.4f}{:10.1f}%\n'
+        fComp.write(sHForm.format('Label', 'Old', 'New', 'Diff', '%diff'))
+        fComp.write('Single Particle Energies\n')
+        diffs=[]
+        for lLab, fOld, fNew in zip(self.mloNuclei[0].llMESpec[0], lOldOBME[0], lNewOBME[0]):
+            fOld = float(fOld)
+            fNew = float(fNew)
+            diffs.append(fNew - fOld)
+            fComp.write(sDatForm.format(str(lLab), fOld, fNew, fNew-fOld, 200.*abs(fOld-fNew)/(abs(fOld)+abs(fNew))))
+        fComp.write('Two Body Matrix Elements\n')
+        for lLab, fOld, fNew in zip(self.mloNuclei[0].getLabel(), lOldTBME, lNewTBME):
+            fOld = float(fOld)
+            fNew = float(fNew)
+            diffs.append(fNew - fOld)
+            fComp.write(sDatForm.format(str(lLab), fOld, fNew, fNew-fOld, 200.*abs(fOld-fNew)/(abs(fOld)+abs(fNew))))
+        fComp.close()
+        return diffs
+        
 # #########################################################
 '''
 Start testing code
@@ -2172,26 +2256,67 @@ Start testing code
 import sys
 sys.path.append('c:\\PythonScripts\\OxBashScripts\\')
 sys.path.append('C:\PythonScripts\generalmath')
-#initialization = 'E:\\initdir\\test'
-initialization = 'E:\\initdir\\shorttest'
+#initialization = 'E:\\initdir\\Lodai_usda_sdba'
+initialization = 'E:\\initdir\\Lodai_usda_srg24'
+#initialization = 'E:\\initdir\\shorttest'
+#initialization = 'E:\\initdir\\uptoA20ex'
+#initialization = 'E:\\initdir\\Lodai_imsrg_A24'
 
-x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput-shorttestdai.in',
-            'c:\\PythonScripts\\OxBashWork\\test',
+#
+#sPathOld = 'C:\\oxbash\\sps\\usdb.int'
+#sPathNew = 'C:\\PythonScripts\\OxBashWork\\Lodai_usdb\\A17_Z8\\usdb.int'
+#sPathComp = 'C:\\PythonScripts\\OxBashWork\\Lodai_usdb\\tracking\\usdb_comp.dat'
+
+x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput-Lodai_usda_srgsda24.in',
+            'c:\\PythonScripts\\OxBashWork\\Lodai_usda_srg24',
             'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=False, 
-            serial = False, sInitDir='')
+            serial = False, sInitDir=initialization)
 
+#import shutil
+#shutil.copytree('c:\\PythonScripts\\OxBashWork\\Lodai_usda_srg24','E:\\initdir\\Lodai_usdans_srg24')
+#rmse1=[]
+#import numpy as np
+#for n in range(63):
+#    ans, a, target, npaME = x.TBTDLeastSq(methodArg=[n, 'fd'])
+#    npaETh = np.dot(a, npaME)
+#    npaWeights, npaNewETh, npaNewEExp = x.calcChiDOF(npaETh, bWeight=True)
+#    rmse1.append(np.sqrt(np.linalg.norm(np.dot(a,ans)-npaNewEExp)/float(npaNewEExp.size)))
+#
+#import shutil
+#shutil.copytree('c:\\PythonScripts\\OxBashWork\\Lodai_usda_srg24','E:\\initdir\\Lodai_usdans_srg24')
 
+#diffs=x.intSideBySide(sPathNew, sPathOld, sPathComp)
+#import matplotlib.pyplot as plt
+#import math
+#plt.hist(diffs,bins=int(math.sqrt(len(diffs))))
+#plt.title('Distribution of ME Differences')
+#plt.savefig('C:\\PythonScripts\\OxBashWork\\Lodai_usdb\\tracking\\comp_hist.pdf')
+#import shutil
+#shutil.copytree('c:\\PythonScripts\\OxBashWork\\Lodai_usdb','E:\\initdir\\Lodai_usdb')
+
+#usdapaths=['C:\\oxbash\\sps\\usda.int','C:\\PythonScripts\OxBashWork\\tracking-usdasdba30\\usda.int']
+#usdbpaths=['C:\\oxbash\\sps\\usdb.int','C:\PythonScripts\OxBashWork\\Lodai_usdb\\A17_Z8\\usdb.int']
+#x.IterativeLSq(sMethod='TBTD', fTolin=10**-2, methodArg=[10,'fd'])
+
+#x.twoInteractionCorrelation(usdbpaths,['USDB','My Fit'])
+#
+
+lnNLC = list(range(3, 33))
+#lnNLC.extend(list(range(28,32)))
+lnNLC.extend(list(range(54,57)))
+lnNLC = list(set(lnNLC))
+lnNLC.sort()
+print lnNLC
+x.testLincomSingle('c:\\PythonScripts\\OxBashWork\\tlc', lnRng=lnNLC)
+##
 #sTLCDat='c:\\PythonScripts\\OxBashWork\\tlc\\TLCSingle.dat'
 #x.tlcPlot(sTLCDat)
-#x.testLincomSingle('c:\\PythonScripts\\OxBashWork\\tlc', lnRng=[0, 63])
-
 
 #x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput-shorttestdai.in',
 #            'c:\\PythonScripts\\OxBashWork\\test',
 #            'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=True, 
 #            serial =False, sInitDir=initialization)
-#
-#x.testLincomSingle('c:\\PythonScripts\\OxBashWork\\tlc', lnRng=[0, 63])
+
 
 
 #test that parallel execution is appreciably faster than serial execution
@@ -2214,5 +2339,5 @@ x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput-shorttestdai.in',
 
 #print x.IterativeLSq(sMethod='single', bMix=False, nMaxIter=10, fTolin=10**-2)
 #x.makeErHist(True)
-ans, a, target, npaME = x.TBTDLeastSq(65)
+#ans, a, target, npaME = x.TBTDLeastSq([30, 'fd'])
 #print x.obj(ans)

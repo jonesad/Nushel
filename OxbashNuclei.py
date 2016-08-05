@@ -692,12 +692,12 @@ class nucleus(OxbashOptFl.MEhandler):
           fIn.close()
           for En in llfEn:
               if npaOutray.size == 0:
-                  dtype = [('nJ', int), ('En', float), ('J', 'S3'),
+                  dtype = [('nJ', int), ('En', float), ('J', 'S8'),
                            ('Pi', 'S2')]
                   values = (En[0], En[1], elem[0], elem[1])
                   npaOutray = np.array(values, dtype=dtype)
               else:
-                  dtype = [('nJ', int), ('En', float), ('J', 'S3'),
+                  dtype = [('nJ', int), ('En', float), ('J', 'S8'),
                            ('Pi', 'S2')]
                   values = (En[0], En[1], elem[0], elem[1])
                   temp = np.array(values, dtype=dtype)
@@ -711,8 +711,8 @@ class nucleus(OxbashOptFl.MEhandler):
       npaOutray = np.sort(npaOutray, order=['En', 'J', 'Pi', 'nJ'])
       fOut = open(sEnPath + self.getLevName(), 'w')
       fOut.write('\n' + '-'*60 + '\n\n')
-      sHFormat = '{:>5}{:>5}{:>11}{:>8}{:>5}{:>5}{:>3}'
-      sFormat = '{:>5d}{:>5d}{:>11.3f}{:>8.3f}{:>5}{:>5}{:>3}'
+      sHFormat = '{:>5}{:>5}{:>11}{:>8}{:>8}{:>5}{:>3}'
+      sFormat = '{:>5d}{:>5d}{:>11.3f}{:>8.3f}{:>8}{:>5}{:>3}'
       fOut.write(sHFormat.format('N', 'nJ', 'E(MeV)', 'E_ex', 'J', 'T_z', 'p')+'\n')      
       for nIdx, elem in enumerate(npaOutray):
           fOut.write(sFormat.format(nIdx, elem['nJ'], elem['En'],
@@ -796,7 +796,6 @@ class nucleus(OxbashOptFl.MEhandler):
         fDen = open(self.sPath + '\\' + self.sName + '\\' + sDenFileName, 'r')
         tempLab = []
         tempDen = []
-        lfOBME = self.getOBME(bAll=True)[0]
         for line in fDen:
             line = line.strip().split()
             if len(line) >= 6:
@@ -806,16 +805,16 @@ class nucleus(OxbashOptFl.MEhandler):
                 for nJIdx, elem in enumerate(line):
                     if nJIdx < 4:
                         line[nJIdx] = self.dTBTDtoTBME[elem]
+                #initial phase (not taking into account sp j)
+                initphase = float(line[4]) + 2.0 - float(line[-2])
                 if self.dRank[line[1]] < self.dRank[line[0]]:
-                    phase = (self.dTBMEtoJ[line[0]] + self.dTBMEtoJ[line[1]] -
-                             float(line[4]) + 1.0)
+                    phase = initphase + self.dTBMEtoJ[line[0]] + self.dTBMEtoJ[line[1]]
                     line[-1] = (-1.0)**phase * float(line[-1])
                     temp = line[0]
                     line[0] = line[1]
                     line[1] = temp
                 if self.dRank[line[3]] < self.dRank[line[2]]:
-                    phase = (self.dTBMEtoJ[line[2]] + self.dTBMEtoJ[line[3]] -
-                             float(line[4]) + 1.0)
+                    phase = initphase + self.dTBMEtoJ[line[2]] + self.dTBMEtoJ[line[3]]
                     line[-1] = (-1.0)**phase * float(line[-1])
                     temp = line[2]
                     line[2] = line[3]
@@ -841,6 +840,10 @@ class nucleus(OxbashOptFl.MEhandler):
                     isit = False
                     for nLabIdx, lab in enumerate(tempLab):
                         if np.all(lab == temp):
+#                            if self.nAZ[0] == 20:
+#                                print self.nAZ, sDenFileName
+#                                print lab, tempDen[nLabIdx], '+', line[-1], '=', tempDen[nLabIdx] + float(line[-1]) 
+#                                raw_input("...")
                             tempDen[nLabIdx] += float(line[-1])
                             isit = True
                     if not isit:

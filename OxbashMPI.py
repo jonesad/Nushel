@@ -104,7 +104,7 @@ if nRank == 0:
         fMPINames.close()
     llnIdxs = dstributeLoad(nSize, len(lNames), sMethod='spread')
     print 'continuing execution'
-    print lNames
+#    print lNames
 llnIdxs=oComm.bcast(llnIdxs, root=0)
 lNames=oComm.bcast(lNames, root=0)
 mylist=[]

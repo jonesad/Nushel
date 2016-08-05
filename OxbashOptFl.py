@@ -113,6 +113,7 @@ class MEhandler:
         fIntOut.write(line)
     fIntSrc.close()
     fIntOut.close()
+    
 #    get the one body matrix elements
   def getOBME(self, sBGIntPath='',bAll=False):
     import numpy as np
@@ -138,6 +139,8 @@ class MEhandler:
                 npaME.append(line[int(elem)])
             elif type(elem) == list:
                 npaME.append(line[int(elem[0])])
+            elif type(elem) == np.int32:
+                npaME.append(line[int(elem)])
             else:
                 print 'Error: member llMESpec[0][0] has unexpected type:'
                 print type(self.llMESpec[0][0])
