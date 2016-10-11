@@ -215,6 +215,8 @@ class MEhandler:
     npaME=np.zeros([size,1])
     nElem=0
     nUnCm=0
+    lMlab = list(self.llMESpec[1])
+    rmList=[]
     for line in fIntSrc:
       if line[0][0]!='!':
         line=line.strip().split()
@@ -238,14 +240,26 @@ class MEhandler:
             if np.all(lab == temp):
               npaME[nLabIdx] = float(line[6])
               nElem = nElem + 1
+              rmList.append(nLabIdx)
               break
         nUnCm += 1
     if (not bAll) and size != nElem:
+      lMlab = [self.llMESpec[1][i] for i in range(len(self.llMESpec[1])) if i not in rmList]
+      self.writeMissingLab(lMlab)
       raw_input ('Warning: npaTBME could not find all ME. Expected: ' +
-          str(size) + ' Found:' + str(nElem)+ '. \n Press Enter to continnue...')
+          str(size) + ' Found:' + str(nElem)+ '. \n Press Enter to continue...')
     fIntSrc.close()
     return np.array(npaME, dtype=float)
 
+  def writeMissingLab(self, lMLab):
+      '''
+          Take a list of missing labels and write to file in tracking folder.
+      '''
+      sOut=str(self.sPath)+'\\'+str(self.sName)+'\\tracking\\Missing.dat'
+      fOut = open(sOut, 'w')
+      for elem in lMLab:
+          fOut.write(str(elem)+'\n')
+      fOut.close()
 #set monopole matrix elements
   def writeMonoME(self, npaME):
     import shutil
@@ -357,6 +371,10 @@ class MEhandler:
       elif line[0]!='!' and (not self.bExtrap):
 #        print self.bExtrap, " so sub 1"
         return len(line.strip().split())-1
+#      else:
+#        print line
+#    print 'bextrap=', self.bExtrap
+#    raw_input('could not count obme. press enter')
 
   #rerturn the total number of TBME in the interaction file
   def countTBME(self):
@@ -386,6 +404,7 @@ class MEhandler:
 #        print 'sum(self.nMEnum[:nCt])', sum(self.nMEnum[:nCt])
 #        print  'sum(self.nMEnum[:nCt+1])', sum(self.nMEnum[:nCt+1])
         print ' npaTBME', npaTBME
+#    raw_input('...')
     if len(npaOBME)>0:
       self.writeOBME(npaOBME) 
     if len(npaTBME)>0:

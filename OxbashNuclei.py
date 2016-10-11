@@ -21,10 +21,11 @@ class nucleus(OxbashOptFl.MEhandler):
   def __init__(self,  nZ, nA, nVal, fGSE, fError, sPath, sMMDR, sPar, lsShared,
                llMESpec, useGS, sForm, initialize=True, bExtrap=True,
                llStateSpec=[], sOBDir='c:\\oxbash',
-               dTBTDtoTBME={'4': '2', '5': '1', '6': '3'},
-               dTBMEtoJ={'1': 1.5, '2': 2.5, '3': 0.5},
-               dRank={'1': 2, '2': 1, '3': 3}, serial=True):
+               dTBTDtoTBME={'4': '2', '5': '1', '6': '3', '14': '4','13':'5','15':'6'},
+               dTBMEtoJ={'1': 1.5, '2': 2.5, '3': 0.5, '4':1.5, '5':2.5, '6':0.5},
+               dRank={'1': 2, '2': 1, '3': 3, '4':5,'5':4,'6':6}, serial=True, core=[8,8]):
     import os
+    self.nCore=core
     self.sOBDir = sOBDir
     self.sPath = sPath
     self.nAZ = [nA, nZ]
@@ -32,14 +33,19 @@ class nucleus(OxbashOptFl.MEhandler):
     self.fError = fError
     self.useGS = useGS
     self.bExtrap = bExtrap
-    temp = self.nAZ[0]-2*self.nAZ[1]
+    self.sMS = lsShared[0]
+    if self.sMS == 'sdt':
+        # use nVal as isospin projection
+        temp = nVal
+#        copy the sdt label
+    else:
+        temp = self.nAZ[0]-2*self.nAZ[1]
     if temp % 2 == 0:
         self.sIsospin = str(abs(int(temp/2)))
     else:
         self.sIsospin = str(temp) + '/2'
     self.nVal = nVal
     self.sName = 'A' + str(nA) + '_Z' + str(nZ)
-    self.sMS = lsShared[0]
     if not os.path.exists(sPath + '\\' + self.sName):
         os.makedirs(self.sPath + '\\' + self.sName)
     if not os.path.exists(sPath + '\\' + self.sName + '\\tracking'):
@@ -59,18 +65,26 @@ class nucleus(OxbashOptFl.MEhandler):
         fMPINames.close()
     import os
     # copy the interaction to the working directory
-    import shutil
     sIntDest = self.sPath + '\\' + self.sName + '\\' + self.sInt + '.int'
-    shutil.copyfile(sOBDir + '\\label.tp', self.sPath + '\\' +
-                    self.sName + '\\label.tp')
+    import shutil
+    # copy the label file to the working directory if there is a complete one that corresponds to the model space
+    if self.sMS == 'sd':
+        shutil.copyfile(sOBDir + '\\label_sd.tp', self.sPath + '\\' +
+                        self.sName + '\\label.tp')
+    elif self.sMS == 'sdt':
+        shutil.copyfile(sOBDir + '\\label_sdt.tp', self.sPath + '\\' +
+                        self.sName + '\\label.tp')
     if not os.path.isfile(sIntDest):
         shutil.copyfile(sOBDir + '\\sps\\' + self.sInt+'.int', sIntDest)
+    sSPSDest = self.sPath + '\\' + self.sName + '\\' + self.sMS + '.sps'
+    if not os.path.isfile(sIntDest):
+        shutil.copyfile(sOBDir + '\\sps\\' + self.sMS+'.sps', sSPSDest)
     if bExtrap:
         fInt = open(sIntDest)
         for line in fInt:
             line = line.strip().split()
             if line[0][0] != '!':
-                self.fScale = (float(line[5]) / (float(line[4]) + float(self.nVal)))**float(line[6])
+                self.fScale = (float(line[-2]) / (float(line[-3]) + float(self.nVal)))**float(line[-1])
                 break
     else:
         self.fScale = 1.0
@@ -81,6 +95,8 @@ class nucleus(OxbashOptFl.MEhandler):
         self.writeStatus()
 # initialize the single particle matrix elements
     if len(llMESpec[0]) == 0:
+#        print self.countOBME()
+#        raw_input('..')
         self.llMESpec[0] = range(1, self.countOBME() + 1)
     self.sForm = sForm
 #    if there is a background interaction provided store it
@@ -113,7 +129,17 @@ class nucleus(OxbashOptFl.MEhandler):
     fAns.write(self.sMS + '\n')
     sForm2 = '{:>12d}'
     fAns.write(sForm2.format(self.nVal)+ '\n')
-    fAns.write(lsShared[1] + '\n')
+    if len(lsShared[1].strip())==1:
+        fAns.write(lsShared[1] + '\n')
+    else:
+        temp = lsShared[1].split()
+        tempform = '{:>12d}'*2+'\n'
+        fAns.write(temp[0]+'\n')
+        fAns.write(temp[1]+'\n')
+        nN =self.nAZ[0]-self.nAZ[1] - self.nCore[0]
+        nZ =self.nAZ[1] - self.nCore[1]
+        fAns.write(tempform.format(nZ,nZ))
+        fAns.write(tempform.format(nN,nN))
     fAns.write(self.sInt +'\n')
     sForm3 = '{:>17.7f}{:>17.7f}'
     temp=sMMDR.strip().split()
@@ -146,13 +172,13 @@ class nucleus(OxbashOptFl.MEhandler):
         else:
             print 'Error invalid parity: ', lev[2], 'only "+1" or "-1" allowed.'
         for nIdx in range(2):
-            fAns.write(sDecForm.format(fJ, 0))            
+            fAns.write(sDecForm.format(fJ, 0))
             fAns.write(sDecForm.format(fTz, 0))            
             fAns.write(sDecForm.format(fPi, 0))
         fAns.write('y\n')
         for nIdx in range(2):
             fAns.write(sDecForm.format(0,0))
-    fAns.write(sForm1.format('st', 0, 0, 0, 0, 0) + '\n\n')        
+    fAns.write(sForm1.format('st', 0, 0, 0, 0, 0))        
     fAns.close()
 
   def writeStatus(self):    
@@ -174,7 +200,7 @@ class nucleus(OxbashOptFl.MEhandler):
     name = 'A' + str(self.nAZ[0]) + '_Z' + str(self.nAZ[1]) + '.lpt'
     return name
 
-# Get Nushell energies
+# Get Oxbash energies
   def getEnNu(self,bAll=False):
     sLevName=self.getLevName()
     afETh=[]
@@ -754,7 +780,7 @@ class nucleus(OxbashOptFl.MEhandler):
     sIntCode = self.lookupLab(self.sInt, 'Int')
 #    sIntCode = 'y'
     if type(sIntCode) == type(None):
-        sIntCode = 'y'        
+        sIntCode = 'y'
     sName += sIntCode
     return sName
 

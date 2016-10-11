@@ -440,6 +440,7 @@ class BashOpt:
             elif sMethod == 'TBTD':
                 temp = self.TBTDLeastSq(methodArg)
                 npaGuess = temp[0]
+                npaGuess = npaGuess.flatten()
             else:
                 print 'Error: sMethod=', sMethod, 'is not a valid argument.'
                 break
@@ -1029,19 +1030,17 @@ class BashOpt:
         ans = ans[0]
 
         return ans, a, target, npaME
-
-#    do a linear least square optimization of the tbme using the TBTDs
-    def TBTDLeastSq(self, methodArg=[]):
-        if methodArg == []:
-            nLC = 30
-        else:
-            nLC = methodArg[0]
-        npaTBTDLabels = []
-        npaTBTD = []
+    def TBTDinit(self):
+        '''
+            Get the two body transition densities and colect their labels for
+            all nuclei
+        '''
         import numpy as np
         import MatManip
+        npaTBTDLabels = []
+        npaTBTD = []
         for nucleus in self.mloNuclei:
-#          get and scale TBTD according to the interaction
+    #          get and scale TBTD according to the interaction
             tempTBTD, tempLabel = nucleus.getTBTD()
             tempTBTD = np.multiply(tempTBTD, nucleus.fScale)
             if len(npaTBTDLabels) == 0 or \
@@ -1057,8 +1056,19 @@ class BashOpt:
                 npaTBTDLabels, npaTBTD = \
                     MatManip.combinedLabeledColumns(npaTBTDLabels, npaTBTD,
                                                     tempLabel, tempTBTD)
+        return np.array(npaTBTDLabels), npaTBTD
+        
+        
+#    do a linear least square optimization of the tbme using the TBTDs
+    def TBTDLeastSq(self, methodArg=[]):
+        if methodArg == []:
+            nLC = 30
+        else:
+            nLC = methodArg[0]
+        import numpy as np
+        import MatManip
+        npaTBTDLabels, npaTBTD = self.TBTDinit()
         npaETh = []
-        npaTBTDLabels = np.array(npaTBTDLabels)
         for nucleus in self.mloNuclei:
             nucleus.llMESpec[0] = list(np.add(range(self.mloNuclei[0].nOBME),
                                        np.ones(self.mloNuclei[0].nOBME,
@@ -1098,18 +1108,14 @@ class BashOpt:
             lnTBMERmList = [elem for elem in nlRMList if elem > 2]
             a= np.delete(a, lnTBMERmList, 1)
             npaME = np.delete(npaME, lnTBMERmList, 0)
-            lnTBMERmList = np.subtract(lnTBMERmList, 3)
+            lnTBMERmList = np.subtract(lnTBMERmList, self.mloNuclei[0].nOBME)
             newTBMEList = np.delete(self.mloNuclei[0].llMESpec[1], lnTBMERmList,0)
 #       check if llsq problem is valid
-        if a.shape[0] <= a.shape[1]:
+        if a.shape[0] <= nLC:
             print 'Warning system underdeterimined with:'
-            print a.shape[1], 'unknowns and only', a.shape[0], 'equations.'
-            print 'Removing a subset of unknowns.'
-            nRem = a.shape[1] - a.shape[0] + 2
-            nlRmList = list(range(a.shape[1]-nRem, a.shape[1]))
-            a = np.delete(a, nlRmList, 1)
-            npaME = np.delete(npaME, nlRmList, 0)
-            newTBMEList = np.delete(newTBMEList, np.subtract(nlRmList, self.mloNuclei[0].nOBME), 0)
+            print nLC, 'Linear combinationsto fit and only', a.shape[0], 'equations.'
+            print 'Reducing nuber of linear combinations to', a.shape[0]
+            nLC = a.shape[0]
         if len(newTBMEList) != 0:
             for nuc in self.mloNuclei:
                 newTBMEList = np.array(newTBMEList)
@@ -1123,24 +1129,23 @@ class BashOpt:
         npaWeights, npaNewETh, npaNewEExp = self.calcChiDOF(npaETh,
                                                             bWeight=True)
         npaWeights = np.diag(npaWeights)
+        aprime = np.dot(npaWeights, a)
         if len(methodArg) > 1 and methodArg[1] == 'fd':
             #fit differences
             target = npaNewEExp - npaNewETh
+            bFitDif = True
         else:
             #fit absolute energy
             target = npaNewEExp
-        aprime = np.dot(npaWeights, a)
+            bFitDif = False
         bprime = np.dot(npaWeights, target)
         npaBGME = self.mloNuclei[0].getBGInt()
-        ans = self.linCom(aprime, npaBGME, bprime, nLincoms=nLC)
-        if len(methodArg) > 1 and methodArg[1] == 'fd':
-            #fit differences
-            ans = ans + npaME
+        ans = self.linCom(aprime, npaBGME, bprime, nLincoms=nLC, bFD =bFitDif)
         return ans, a, target, npaME
 
 # lst square solution to matrix a, with initial guess xbg, target b, and an 
 # epsilon threshold for determining well determined lincoms
-    def linCom(self, a, xbg, b, epsilon=-0.1, nLincoms = 0):
+    def linCom(self, a, xbg, b, epsilon=-0.1, nLincoms = 0, bFD=False):
         import numpy as np
         [u, s, vt] = np.linalg.svd(a)
 #        use default value if no valid epsilon is given 
@@ -1169,16 +1174,26 @@ class BashOpt:
         d[:np.amin(d.shape), :np.amin(d.shape)] = np.diag(1./s)
         yn = np.dot(d, e)
         ys = np.dot(vt, xbg)
-        ys = np.dot(d[:len(s),:len(s)], ys)
         y = []
         numbelow = 0
         epsilon -= np.finfo(type(epsilon)).eps
-        for i in range(s.size):
-            if s[i] >= epsilon:
-                y.append(yn[i])
+        if bFD:
+            y0 = self.mloNuclei[0].getME()
+            y0 = np.dot(vt, y0)
+        for i in range(ys.size):
+            if bFD:
+                if i < s.size and s[i] >= epsilon:
+                    y.append(yn[i,0]+y0[i])
+                    print yn[i,0], y0[i]
+                else:
+                    y.append(ys[i])
+                    numbelow += 1
             else:
-                y.append(ys[i])
-                numbelow += 1
+                if i < s.size and s[i] >= epsilon:
+                    y.append(yn[i])                
+                else:
+                    y.append(ys[i])
+                    numbelow += 1
         print numbelow, 'lincoms of ', s.size, 'are not well determined.'
         self.lincomreport(a.shape[0], s.size, numbelow, epsilon)
         y = np.array(y)
@@ -1712,6 +1727,7 @@ class BashOpt:
         plt.show()
 # plot residual histogram
         temp = np.subtract(lfExpectedLong, lfObtainedLong)
+        
         residual = [number for number in temp if x != 0.0]
         residual = np.absolute(residual)
         import math
@@ -2160,6 +2176,21 @@ class BashOpt:
             fOut.close()
             self.reInit()
 
+    def bootstrappedLC(self, sOutDir, lnRng=[], bSave=True):
+        '''
+            Runs the iterative least square to convergence for each of a given 
+            list of linear combinations. Use previous result as initialization 
+            for next result and save each converged fit.  
+        '''
+        import os
+        import shutil
+        if not os.path.isdir(sOutDir):
+            os.makedirs(sOutDir)
+        for n in lnRng:
+            self.IterativeLSq(sMethod='TBTD', bMix=False, nMaxIter=10, fTolin=10**-2,methodArg=[n, 'fd'])
+            if bSave:
+                shutil.copytree(self.sOutPath, sOutDir+'\\'+str(n))
+
     def testLincomNone(self, sOutDir, lnRng=[]):
         '''
             Test how the number of linear combinations fit in the optimization
@@ -2194,11 +2225,12 @@ class BashOpt:
         ax.plot(lfLC, lfDat, label = 'LinCom Data')
         ax.set_xlabel('# linear combinations fit')
         ax.set_ylabel('RMS error after 1 iteration (MeV)')
+        ax.set_ylim([0.,.2])
         ax.set_title('usda w/sdba background')
         fXlim = ax.get_xlim()
         ax.plot(fXlim, [fRef,fRef], ls='--', label='sdba w/o fit')
         plt.legend(loc='best')
-        plt.savefig('c:\\PythonScripts\\OxBashWork\\tlc\\tlc.pdf')
+        plt.savefig(sTLCDat+'tlc.pdf')
     
     def twoInteractionCorrelation(self, lsIntPaths, lsIntLabs):
         if len(lsIntPaths) !=2 or len(lsIntLabs)!=2:
@@ -2257,21 +2289,22 @@ import sys
 sys.path.append('c:\\PythonScripts\\OxBashScripts\\')
 sys.path.append('C:\PythonScripts\generalmath')
 #initialization = 'E:\\initdir\\Lodai_usda_sdba'
-initialization = 'E:\\initdir\\Lodai_usda_srg24'
+#initialization = 'E:\\initdir\\Lodai_usda_srg24_fit\\20'
 #initialization = 'E:\\initdir\\shorttest'
 #initialization = 'E:\\initdir\\uptoA20ex'
 #initialization = 'E:\\initdir\\Lodai_imsrg_A24'
-
+initialization =''
 #
 #sPathOld = 'C:\\oxbash\\sps\\usdb.int'
 #sPathNew = 'C:\\PythonScripts\\OxBashWork\\Lodai_usdb\\A17_Z8\\usdb.int'
 #sPathComp = 'C:\\PythonScripts\\OxBashWork\\Lodai_usdb\\tracking\\usdb_comp.dat'
 
-x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput-Lodai_usda_srgsda24.in',
-            'c:\\PythonScripts\\OxBashWork\\Lodai_usda_srg24',
+x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput-testold.in',
+            'c:\\PythonScripts\\OxBashWork\\testold',
             'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=False, 
             serial = False, sInitDir=initialization)
-
+#sOutDir = 'E:\\initdir\\Lodai_usda_srg24_fit'
+#x.bootstrappedLC(sOutDir, lnRng=[25, 30, 35, 40, 45, 50, 55, 56, 57, 60, 65, 66])
 #import shutil
 #shutil.copytree('c:\\PythonScripts\\OxBashWork\\Lodai_usda_srg24','E:\\initdir\\Lodai_usdans_srg24')
 #rmse1=[]
@@ -2296,28 +2329,28 @@ x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput-Lodai_usda_srgsda24.in',
 
 #usdapaths=['C:\\oxbash\\sps\\usda.int','C:\\PythonScripts\OxBashWork\\tracking-usdasdba30\\usda.int']
 #usdbpaths=['C:\\oxbash\\sps\\usdb.int','C:\PythonScripts\OxBashWork\\Lodai_usdb\\A17_Z8\\usdb.int']
-#x.IterativeLSq(sMethod='TBTD', fTolin=10**-2, methodArg=[10,'fd'])
+#x.IterativeLSq(sMethod='single', fTolin=10**-2)
 
 #x.twoInteractionCorrelation(usdbpaths,['USDB','My Fit'])
 #
-
-lnNLC = list(range(3, 33))
+#
+#lnNLC = list(range(0, 5))
 #lnNLC.extend(list(range(28,32)))
-lnNLC.extend(list(range(54,57)))
-lnNLC = list(set(lnNLC))
-lnNLC.sort()
-print lnNLC
-x.testLincomSingle('c:\\PythonScripts\\OxBashWork\\tlc', lnRng=lnNLC)
+#lnNLC.extend(list(range(54,57)))
+#lnNLC.extend(list(range(10,66,5)))
+#lnNLC = list(set(lnNLC))
+#lnNLC.sort()
+#print lnNLC
+#x.testLincomSingle('c:\\PythonScripts\\OxBashWork\\tlc', lnRng=lnNLC)
 ##
 #sTLCDat='c:\\PythonScripts\\OxBashWork\\tlc\\TLCSingle.dat'
+#sTLCDat='C:\\PythonScripts\\OxBashWork\\tlc_usda_srg24\\TLCSingle.dat'
 #x.tlcPlot(sTLCDat)
 
 #x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput-shorttestdai.in',
 #            'c:\\PythonScripts\\OxBashWork\\test',
 #            'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=True, 
 #            serial =False, sInitDir=initialization)
-
-
 
 #test that parallel execution is appreciably faster than serial execution
 #import time 
@@ -2339,5 +2372,5 @@ x.testLincomSingle('c:\\PythonScripts\\OxBashWork\\tlc', lnRng=lnNLC)
 
 #print x.IterativeLSq(sMethod='single', bMix=False, nMaxIter=10, fTolin=10**-2)
 #x.makeErHist(True)
-#ans, a, target, npaME = x.TBTDLeastSq([30, 'fd'])
+ans, a, target, npaME = x.TBTDLeastSq([3, 'fd'])
 #print x.obj(ans)
