@@ -7,7 +7,8 @@ utility file for mpi execution of oxbash shell model calculations
 
 def dstributeLoad(nSize, nNames,sMethod=''):
     '''
-        Deal out work to the different processor ids nased on method
+        Deal out work to the different processor ids based on method and whether 
+        or not runtime is known for each name.
     '''
     print 'distributing load'
     import numpy as np
@@ -17,6 +18,10 @@ def dstributeLoad(nSize, nNames,sMethod=''):
     sCWD=os.getcwd()
     bTimes = False
     if os.path.isfile(sCWD + '\\times.dat'):
+        '''
+            Times contains the index of the place in the names list and the 
+            approximate runtime on each line.
+        '''
         bTimes = True
         fTimes = open(sCWD + '\\times.dat', 'r')
         lfFtimes = []
@@ -81,19 +86,28 @@ def dstributeLoad(nSize, nNames,sMethod=''):
         fSF.close()
     print 'distribution complete'
     return llnIdxs
-
-
+###############################################################################
+'''
+    Start Script for using mpi
+'''
 from mpi4py import MPI
 oComm = MPI.COMM_WORLD
 nRank = oComm.rank
 oComm.Barrier()
-#read input data from a file sitting in the working directory
+'''
+    read input data from a file sitting in the working directory
+'''
 lNames = [] 
 import os
 sCWD=os.getcwd()
 nSize=oComm.size
 llnIdxs = [[] for i in range(nSize)]
 if nRank == 0:
+    '''
+        Get look for the file that contains the names of previously generated 
+        .ans files (without the .ans extension). The files should reside in a 
+        subdirectory of the current directory with the same name.
+    '''
     if not os.path.isfile('MPINames.dat'):
         print 'Error: input file MPINames.dat is not present in current directory:'
         print os.getcwd()
@@ -110,6 +124,10 @@ lNames=oComm.bcast(lNames, root=0)
 mylist=[]
 import time
 for i in llnIdxs[nRank]:
+    '''
+        Give each processor a list of names based on their rank, execute 
+        them, and record runtime.
+    '''
     start = time.time()
     os.chdir(sCWD + '\\' + lNames[i])
     os.system('shell ' + lNames[i] + '.ans')
@@ -118,6 +136,9 @@ for i in llnIdxs[nRank]:
     total = end - start
     mylist.append([i, total])
 mylist = oComm.gather(mylist, root=0)
+'''
+    Collect the runtimes and overwrite the times.dat file
+'''
 if nRank == 0:
     newlist = []
     for elem in mylist:
@@ -128,5 +149,8 @@ if nRank == 0:
         fTimes.write(sform.format(elem[0], elem[1]))
     fTimes.close()
 oComm.Barrier()
+'''
+    Report succesful completion.
+'''
 print nRank, 'made it past barrier'
 MPI.Finalize()

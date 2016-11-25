@@ -656,6 +656,7 @@ class BashOpt:
         sMMDRform = ' {:>2.1f}, {:>2.1f}, {:>2.1f}\n'
         mnNuclei = 0
         for line in fDAI:
+#            print line
             line = line.strip().split()
             lnCurentAI = [int(line[0]), int(line[1])]
             if not np.all(lnLastAI == lnCurentAI):
@@ -688,6 +689,7 @@ class BashOpt:
                                                    initialize, self.bExtrap,
                                                    llStateSpec, serial=self.serial)
                     tempnuc.setmanBody(anBody)
+#                    print tempnuc.nAZ
                     self.mloNuclei.append(tempnuc)
 # get as much info as you can about the new nucleus from first line
                 nA = int(line[0])
@@ -1060,7 +1062,7 @@ class BashOpt:
         
         
 #    do a linear least square optimization of the tbme using the TBTDs
-    def TBTDLeastSq(self, methodArg=[]):
+    def TBTDLeastSq(self, methodArg=[], bValid=True):
         if methodArg == []:
             nLC = 30
         else:
@@ -1138,6 +1140,11 @@ class BashOpt:
             #fit absolute energy
             target = npaNewEExp
             bFitDif = False
+        if bValid:
+            num=np.linalg.norm(np.dot(a,npaME)-npaNewETh)
+            fval = open(self.sOutPath+'\\val.dat', 'a')
+            fval.write('{:10.4f}'.format(num))
+            fval.close()
         bprime = np.dot(npaWeights, target)
         npaBGME = self.mloNuclei[0].getBGInt()
         ans = self.linCom(aprime, npaBGME, bprime, nLincoms=nLC, bFD =bFitDif)
@@ -2287,7 +2294,7 @@ Start testing code
 '''
 import sys
 sys.path.append('c:\\PythonScripts\\OxBashScripts\\')
-sys.path.append('C:\PythonScripts\generalmath')
+sys.path.append('C:\\PythonScripts\\generalmath')
 #initialization = 'E:\\initdir\\Lodai_usda_sdba'
 #initialization = 'E:\\initdir\\Lodai_usda_srg24_fit\\20'
 #initialization = 'E:\\initdir\\shorttest'
@@ -2298,79 +2305,11 @@ initialization =''
 #sPathOld = 'C:\\oxbash\\sps\\usdb.int'
 #sPathNew = 'C:\\PythonScripts\\OxBashWork\\Lodai_usdb\\A17_Z8\\usdb.int'
 #sPathComp = 'C:\\PythonScripts\\OxBashWork\\Lodai_usdb\\tracking\\usdb_comp.dat'
-
-x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput-testold.in',
-            'c:\\PythonScripts\\OxBashWork\\testold',
-            'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=False, 
+x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput-shorttest.in',
+            'c:\\PythonScripts\\OxbashWork\\shorttest',
+            'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=True, 
             serial = False, sInitDir=initialization)
-#sOutDir = 'E:\\initdir\\Lodai_usda_srg24_fit'
-#x.bootstrappedLC(sOutDir, lnRng=[25, 30, 35, 40, 45, 50, 55, 56, 57, 60, 65, 66])
 #import shutil
-#shutil.copytree('c:\\PythonScripts\\OxBashWork\\Lodai_usda_srg24','E:\\initdir\\Lodai_usdans_srg24')
-#rmse1=[]
-#import numpy as np
-#for n in range(63):
-#    ans, a, target, npaME = x.TBTDLeastSq(methodArg=[n, 'fd'])
-#    npaETh = np.dot(a, npaME)
-#    npaWeights, npaNewETh, npaNewEExp = x.calcChiDOF(npaETh, bWeight=True)
-#    rmse1.append(np.sqrt(np.linalg.norm(np.dot(a,ans)-npaNewEExp)/float(npaNewEExp.size)))
-#
-#import shutil
-#shutil.copytree('c:\\PythonScripts\\OxBashWork\\Lodai_usda_srg24','E:\\initdir\\Lodai_usdans_srg24')
-
-#diffs=x.intSideBySide(sPathNew, sPathOld, sPathComp)
-#import matplotlib.pyplot as plt
-#import math
-#plt.hist(diffs,bins=int(math.sqrt(len(diffs))))
-#plt.title('Distribution of ME Differences')
-#plt.savefig('C:\\PythonScripts\\OxBashWork\\Lodai_usdb\\tracking\\comp_hist.pdf')
-#import shutil
-#shutil.copytree('c:\\PythonScripts\\OxBashWork\\Lodai_usdb','E:\\initdir\\Lodai_usdb')
-
-#usdapaths=['C:\\oxbash\\sps\\usda.int','C:\\PythonScripts\OxBashWork\\tracking-usdasdba30\\usda.int']
-#usdbpaths=['C:\\oxbash\\sps\\usdb.int','C:\PythonScripts\OxBashWork\\Lodai_usdb\\A17_Z8\\usdb.int']
-#x.IterativeLSq(sMethod='single', fTolin=10**-2)
-
-#x.twoInteractionCorrelation(usdbpaths,['USDB','My Fit'])
-#
-#
-#lnNLC = list(range(0, 5))
-#lnNLC.extend(list(range(28,32)))
-#lnNLC.extend(list(range(54,57)))
-#lnNLC.extend(list(range(10,66,5)))
-#lnNLC = list(set(lnNLC))
-#lnNLC.sort()
-#print lnNLC
-#x.testLincomSingle('c:\\PythonScripts\\OxBashWork\\tlc', lnRng=lnNLC)
-##
-#sTLCDat='c:\\PythonScripts\\OxBashWork\\tlc\\TLCSingle.dat'
-#sTLCDat='C:\\PythonScripts\\OxBashWork\\tlc_usda_srg24\\TLCSingle.dat'
-#x.tlcPlot(sTLCDat)
-
-#x = BashOpt('c:\\PythonScripts\\OxBashScripts\\OptInput-shorttestdai.in',
-#            'c:\\PythonScripts\\OxBashWork\\test',
-#            'c:\\PythonScripts\\OxBashScripts\\errors.dat', initialize=True, 
-#            serial =False, sInitDir=initialization)
-
-#test that parallel execution is appreciably faster than serial execution
-#import time 
-#me = x.mloNuclei[0].getME()
-#npstart = time.clock()
-#x.obj(me)
-#npend = time.clock()
-#x.serial = True
-#for onuc in x.mloNuclei:
-#    onuc.serial = True
-#nsstart = time.clock()
-#x.obj(me)
-#nsend = time.clock()
-#
-#print '\n' * 5
-#print 'Parrallel', npend - npstart
-#print 'Serial', nsend - nsstart
-
-
-#print x.IterativeLSq(sMethod='single', bMix=False, nMaxIter=10, fTolin=10**-2)
-#x.makeErHist(True)
-ans, a, target, npaME = x.TBTDLeastSq([3, 'fd'])
-#print x.obj(ans)
+#shutil.copytree('c:\\PythonScripts\\OxbashWork\\w_sdba_fit','e:\\initdir\\w_sdba_fit')
+#lnLC=range(5,66,5)
+#x.bootstrappedLC('E:\\initdir\\Lodai_w_sdba_fit\\', lnLC)

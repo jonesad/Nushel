@@ -37,7 +37,8 @@ class nucleus(OxbashOptFl.MEhandler):
     if self.sMS == 'sdt':
         # use nVal as isospin projection
         temp = nVal
-#        copy the sdt label
+#        temp = self.nAZ[0]-2*self.nAZ[1]
+
     else:
         temp = self.nAZ[0]-2*self.nAZ[1]
     if temp % 2 == 0:
@@ -622,7 +623,10 @@ class nucleus(OxbashOptFl.MEhandler):
                   bComp2 = bIsIt and not (len(line) == 0) and not bComp1
               if bComp2:
                   '''nj, occ1, occ2, occ3, ...'''
-                  llfOcc.append(line)
+                  if line != [] and line[0]!='file':
+                      llfOcc.append(line)
+                  elif len(line)>0 and line[0]=='file':
+                      break
               else:
                   lOldLine = line
                   continue
@@ -825,42 +829,7 @@ class nucleus(OxbashOptFl.MEhandler):
         for line in fDen:
             line = line.strip().split()
             if len(line) >= 6:
-                '''
-                    make TBTD labels consistent with the matrix element labels
-                '''
-                for nJIdx, elem in enumerate(line):
-                    if nJIdx < 4:
-                        line[nJIdx] = self.dTBTDtoTBME[elem]
-                #initial phase (not taking into account sp j)
-                initphase = float(line[4]) + 2.0 - float(line[-2])
-                if self.dRank[line[1]] < self.dRank[line[0]]:
-                    phase = initphase + self.dTBMEtoJ[line[0]] + self.dTBMEtoJ[line[1]]
-                    line[-1] = (-1.0)**phase * float(line[-1])
-                    temp = line[0]
-                    line[0] = line[1]
-                    line[1] = temp
-                if self.dRank[line[3]] < self.dRank[line[2]]:
-                    phase = initphase + self.dTBMEtoJ[line[2]] + self.dTBMEtoJ[line[3]]
-                    line[-1] = (-1.0)**phase * float(line[-1])
-                    temp = line[2]
-                    line[2] = line[3]
-                    line[3] = temp
-                if (self.dRank[line[2]] + self.dRank[line[3]]) <\
-                        (self.dRank[line[0]] + self.dRank[line[1]]):
-                    temp = [line[0], line[1]]
-                    line[0] = line[2]
-                    line[1] = line[3]
-                    line[2] = temp[0]
-                    line[3] = temp[1]
-                elif (self.dRank[line[2]] + self.dRank[line[3]]) ==\
-                        (self.dRank[line[0]] + self.dRank[line[1]]) and\
-                        min(self.dRank[line[2]], self.dRank[line[3]]) <\
-                        min(self.dRank[line[0]], self.dRank[line[1]]):
-                    temp = [line[0], line[1]]
-                    line[0] = line[2]
-                    line[1] = line[3]
-                    line[2] = temp[0]
-                    line[3] = temp[1]
+                line, phase = self.translab(line)
                 temp = [int(line[nIdx]) for nIdx in range(6)]
                 if tempLab != []:
                     isit = False
@@ -899,3 +868,45 @@ class nucleus(OxbashOptFl.MEhandler):
                                                                tempLab,
                                                                tempDen)
     return npaTBTD, lnpaLab
+    
+  def translab(self, line):        
+    '''
+        make TBTD labels consistent with the matrix element labels
+    '''
+    for nJIdx, elem in enumerate(line):
+        if nJIdx < 4:
+            line[nJIdx] = self.dTBTDtoTBME[elem]
+    #initial phase (not taking into account sp j)
+    initphase = float(line[4]) + 2.0 - float(line[-2])
+    pheval=1.
+    if self.dRank[line[1]] < self.dRank[line[0]]:
+        phase = initphase + self.dTBMEtoJ[line[0]] + self.dTBMEtoJ[line[1]]
+        pheval=(-1.0)**phase 
+        line[-1] = pheval* float(line[-1])
+        temp = line[0]
+        line[0] = line[1]
+        line[1] = temp
+    if self.dRank[line[3]] < self.dRank[line[2]]:
+        phase = initphase + self.dTBMEtoJ[line[2]] + self.dTBMEtoJ[line[3]]
+        pheval=(-1.0)**phase 
+        line[-1] = pheval* float(line[-1])
+        temp = line[2]
+        line[2] = line[3]
+        line[3] = temp
+    if (self.dRank[line[2]] + self.dRank[line[3]]) <\
+            (self.dRank[line[0]] + self.dRank[line[1]]):
+        temp = [line[0], line[1]]
+        line[0] = line[2]
+        line[1] = line[3]
+        line[2] = temp[0]
+        line[3] = temp[1]
+    elif (self.dRank[line[2]] + self.dRank[line[3]]) ==\
+            (self.dRank[line[0]] + self.dRank[line[1]]) and\
+            min(self.dRank[line[2]], self.dRank[line[3]]) <\
+            min(self.dRank[line[0]], self.dRank[line[1]]):
+        temp = [line[0], line[1]]
+        line[0] = line[2]
+        line[1] = line[3]
+        line[2] = temp[0]
+        line[3] = temp[1]
+    return line, pheval

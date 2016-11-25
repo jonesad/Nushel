@@ -246,8 +246,8 @@ class MEhandler:
     if (not bAll) and size != nElem:
       lMlab = [self.llMESpec[1][i] for i in range(len(self.llMESpec[1])) if i not in rmList]
       self.writeMissingLab(lMlab)
-      raw_input ('Warning: npaTBME could not find all ME. Expected: ' +
-          str(size) + ' Found:' + str(nElem)+ '. \n Press Enter to continue...')
+      print ('Warning: npaTBME could not find all ME. Expected: ' +
+          str(size) + ' Found:' + str(nElem)+ '.')
     fIntSrc.close()
     return np.array(npaME, dtype=float)
 
